@@ -51,6 +51,8 @@ TopicOption topicOptions[] = {
 };
 const int NUM_TOPICS = sizeof(topicOptions) / sizeof(TopicOption);
 
+int temp_refresh_ms = 2000;    // intervalle en millisecondes (par défaut : 2s)
+int mqtt_publish_ms = 5000;    // intervalle en millisecondes (par défaut : 5s)
 
 float measureDistance() {
   float sum = 0;
@@ -386,6 +388,36 @@ void handleSettings() {
       h2 { font-size: 1.25rem; }
       .section-title { font-size: 1em; }
     }
+    select {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1.5px solid #48cae4;
+      background: linear-gradient(90deg, #caf0f8 60%, #90e0ef 100%);
+      color: #005077;
+      font-size: 1.08em;
+      font-weight: 500;
+      box-shadow: 0 2px 6px rgba(72,202,228,0.10);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      margin-bottom: 14px;
+      outline: none;
+    }
+    select:focus {
+      border-color: #0077b6;
+      box-shadow: 0 0 6px #00b4d8aa;
+    }
+    option {
+      background: #e0fbfc;
+      color: #005077;
+      font-weight: 500;
+    }
+    .section-title {
+      margin-bottom: 10px;
+      color: #0096c7;
+      font-size: 1.19em;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-shadow: 0 2px 4px #b7e5f8;
+    }
   </style>
   </head>
   <body>
@@ -466,6 +498,11 @@ void handleSettings() {
             html += "></td></tr>";
           }
           html += "</table>";
+
+          html += "<label>MQTT publish period (seconds):</label>";
+          html += "<input type='number' min='1' max='3600' name='mqtt_publish' value='" + String(mqtt_publish_ms/1000) + "' required>";
+
+
           html += "<button type='submit'>Save Topics</button>";
           html += "</form></div>";
 
@@ -539,6 +576,9 @@ void handleSettingsSave() {
   if (server.hasArg("tank_length")) tank_length_cm = server.arg("tank_length").toFloat();
   if (server.hasArg("tank_width")) tank_width_cm = server.arg("tank_width").toFloat();
 
+  if(server.hasArg("temp_refresh")) temp_refresh_ms = server.arg("temp_refresh").toInt() * 1000;
+  if(server.hasArg("mqtt_publish")) mqtt_publish_ms = server.arg("mqtt_publish").toInt() * 1000;
+
   prefs.begin("cuve", false);
   prefs.putInt("tank_shape", tank_shape);
   prefs.putFloat("tank_diameter", tank_diameter_cm);
@@ -546,6 +586,9 @@ void handleSettingsSave() {
   prefs.putFloat("tank_height", tank_height_cm);
   prefs.putFloat("tank_length", tank_length_cm);
   prefs.putFloat("tank_width", tank_width_cm);
+
+  prefs.putInt("temp_refresh_ms", temp_refresh_ms);
+  prefs.putInt("mqtt_publish_ms", mqtt_publish_ms);
   prefs.end();
 
   server.sendHeader("Location", "/settings");
@@ -586,6 +629,8 @@ void handleCalibrate() {
 
 void handleTopicsSave() {
   prefs.begin("cuve", false);
+  if(server.hasArg("mqtt_publish")) mqtt_publish_ms = server.arg("mqtt_publish").toInt() * 1000;
+  prefs.putInt("mqtt_publish_ms", mqtt_publish_ms);
   for (int i = 0; i < NUM_TOPICS; ++i) {
     String field = String("enable_") + topicOptions[i].topic_suffix;
     if (server.hasArg(field)) {
@@ -599,6 +644,17 @@ void handleTopicsSave() {
   server.sendHeader("Location", "/settings");
   server.send(303);
 }
+
+void handleTempSettingsSave() {
+  if (server.hasArg("temp_refresh")) temp_refresh_ms = server.arg("temp_refresh").toInt() * 1000;
+  prefs.begin("cuve", false);
+  prefs.putInt("temp_refresh_ms", temp_refresh_ms);
+  prefs.end();
+
+  server.sendHeader("Location", "/settings");
+  server.send(303);
+}
+
 
 void handleData() {
   float distance = measureDistance();
@@ -626,7 +682,7 @@ void handleData() {
 unsigned long lastMqttAttempt = 0;
 
 void mqttReconnect() {
-  if (!mqtt.connected() && millis() - lastMqttAttempt > 5000) {
+  if (!mqtt.connected() && millis() - lastMqttAttempt > mqtt_publish_ms) {
     lastMqttAttempt = millis();
     mqtt.connect("esp32cuve", mqtt_username.c_str(), mqtt_password.c_str());
   }
@@ -634,6 +690,9 @@ void mqttReconnect() {
 
 void setup() {
   Serial.begin(115200);
+
+  temp_refresh_ms = prefs.getInt("temp_refresh_ms", 2000);
+  mqtt_publish_ms = prefs.getInt("mqtt_publish_ms", 5000);
 
   sensors.begin();
 
@@ -657,13 +716,13 @@ void setup() {
   // Wifi Chunk
   WiFiManager wifiManager;
   // wifiManager.resetSettings(); // Uncomment if you want to reset wifi
-  wifiManager.autoConnect("ESP32_Config");
+  wifiManager.autoConnect("Tank_Automation_Config");
   Serial.println("WiFi connected: ");
   Serial.println(WiFi.localIP());
 
   prefs.begin("cuve", true);
-  mqtt_host = prefs.getString("mqtt_host", "192.168.1.28");
-  mqtt_username = prefs.getString("mqtt_user", "hoocked");
+  mqtt_host = prefs.getString("mqtt_host", "");
+  mqtt_username = prefs.getString("mqtt_user", "");
   mqtt_password = prefs.getString("mqtt_pass", "");
   prefs.end();
 
@@ -678,6 +737,7 @@ void setup() {
   server.on("/mqtt_status", HTTP_GET, handleMqttStatus);
   server.on("/mqtt_connect", HTTP_POST, handleMqttConnect);
   server.on("/topics", HTTP_POST, handleTopicsSave);
+  server.on("/temp_settings", HTTP_POST, handleTempSettingsSave);
   server.begin();
 }
 
@@ -687,14 +747,14 @@ void loop() {
   server.handleClient();
 
   static unsigned long lastTempRead = 0;
-  if (millis() - lastTempRead > 2000) {
+  if (millis() - lastTempRead > temp_refresh_ms) {
     sensors.requestTemperatures();
     current_temp = sensors.getTempCByIndex(0);  // 0 si une seule sonde
     lastTempRead = millis();
   }
 
   static unsigned long lastMqttPublish = 0;
-  if (millis() - lastMqttPublish > 5000) {  // Publie toutes les 5 sec (ajuste si besoin)
+  if (millis() - lastMqttPublish > mqtt_publish_ms) {  // Publie toutes les 5 sec (ajuste si besoin)
     lastMqttPublish = millis();
 
     float distance = measureDistance();
