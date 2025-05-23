@@ -36,6 +36,20 @@ WiFiClient espClient;
 PubSubClient mqtt(espClient);
 WebServer server(80);
 
+struct TopicOption {
+  const char* topic_suffix;
+  bool enabled;
+};
+TopicOption topicOptions[] = {
+  { "water_distance", true },
+  { "water_height", true },
+  { "water_percent", true },
+  { "water_volume", true },
+  { "water_temp", true }
+};
+const int NUM_TOPICS = sizeof(topicOptions) / sizeof(TopicOption);
+
+
 float measureDistance() {
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
@@ -396,13 +410,36 @@ void handleSettings() {
               <span id="mqttStatus" style="font-weight:bold;">Status: Checking...</span>
               <button type="submit" style="margin-left:12px;">Connect</button>
             </div>
-          </form>
-        </div>
+          </form>)rawliteral";
+
+  html += "<div class=\"setting-section\">";
+  html += "<div class=\"section-title\">Topics</div>";
+  html += "<form method=\"POST\" action=\"/topics\">";
+  html += "<table style=\"width:100%;\">";
+  for (int i = 0; i < NUM_TOPICS; ++i) {
+    html += "<tr><td>";
+    // Display prefix + suffix (full topic)
+    html += tank_name;
+    html += "/";
+    html += topicOptions[i].topic_suffix;
+    html += "</td><td style='text-align:right'><input type='checkbox' name='enable_";
+    html += topicOptions[i].topic_suffix;
+    html += "' ";
+    if (topicOptions[i].enabled) html += "checked";
+    html += "></td></tr>";
+  }
+  html += "</table>";
+  html += "<button type='submit'>Save Topics</button>";
+  html += "</form></div>";
+
+
+  html += R"rawliteral(</div>
 
         <div class="setting-section">
           <div class="section-title">🛠️ Other Topic</div>
           ...
         </div>
+
 
       <a href="/">← Back to Dashboard</a>
     </div>
@@ -445,6 +482,7 @@ void handleSettings() {
   </body>
   </html>
   )rawliteral";
+
   server.send(200, "text/html", html);
 }
 
@@ -497,21 +535,27 @@ void handleCalibrate() {
   server.send(303);
 }
 
+void handleTopicsSave() {
+  prefs.begin("cuve", false);
+  for (int i = 0; i < NUM_TOPICS; ++i) {
+    String field = String("enable_") + topicOptions[i].topic_suffix;
+    if (server.hasArg(field)) {
+      topicOptions[i].enabled = true;
+    } else {
+      topicOptions[i].enabled = false;
+    }
+    prefs.putBool(topicOptions[i].topic_suffix, topicOptions[i].enabled);
+  }
+  prefs.end();
+  server.sendHeader("Location", "/settings");
+  server.send(303);
+}
+
 void handleData() {
   float distance = measureDistance();
   float water_height = max(0.0f, tank_height_cm - distance);
   float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
   float volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
-
-  if (mqtt.connected()) {
-    String prefix = tank_name;
-    prefix.replace(" ", "_");
-    mqtt.publish((prefix + "/water_distance").c_str(), String(distance, 1).c_str());
-    mqtt.publish((prefix + "/water_height").c_str(), String(water_height, 1).c_str());
-    mqtt.publish((prefix + "/water_percent").c_str(), String(percent, 0).c_str());
-    mqtt.publish((prefix + "/water_volume").c_str(), String(volume_liters, 1).c_str());
-    mqtt.publish((prefix + "/water_temp").c_str(), String(current_temp, 1).c_str());
-  }
 
   String json = "{";
   json += "\"distance\":" + String(distance, 1) + ",";
@@ -532,8 +576,6 @@ void mqttReconnect() {
   }
 }
 
-
-
 void setup() {
   Serial.begin(115200);
 
@@ -548,6 +590,10 @@ void setup() {
   tank_length_cm = prefs.getFloat("tank_length", 50.0);
   tank_width_cm = prefs.getFloat("tank_width", 40.0);
   eau_max_cm = prefs.getFloat("eau_max", 100.0);
+
+  for (int i = 0; i < NUM_TOPICS; ++i) {
+    topicOptions[i].enabled = prefs.getBool(topicOptions[i].topic_suffix, true);
+  }
   prefs.end();
 
   // Wifi Chunk
@@ -573,6 +619,7 @@ void setup() {
   server.on("/settings", HTTP_POST, handleSettingsSave);
   server.on("/mqtt_status", HTTP_GET, handleMqttStatus);
   server.on("/mqtt_connect", HTTP_POST, handleMqttConnect);
+  server.on("/topics", HTTP_POST, handleTopicsSave);
   server.begin();
 }
 
@@ -586,5 +633,32 @@ void loop() {
     sensors.requestTemperatures();
     current_temp = sensors.getTempCByIndex(0);  // 0 si une seule sonde
     lastTempRead = millis();
+  }
+
+  static unsigned long lastMqttPublish = 0;
+  if (millis() - lastMqttPublish > 5000) {  // Publie toutes les 5 sec (ajuste si besoin)
+    lastMqttPublish = millis();
+
+    float distance = measureDistance();
+    float water_height = max(0.0f, tank_height_cm - distance);
+    float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
+    float volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
+
+    if (mqtt.connected()) {
+      String prefix = tank_name;
+      prefix.replace(" ", "_");
+      for (int i = 0; i < NUM_TOPICS; ++i) {
+        if (topicOptions[i].enabled) {
+          String topic = prefix + "/" + topicOptions[i].topic_suffix;
+          String val;
+          if (strcmp(topicOptions[i].topic_suffix, "water_distance") == 0) val = String(distance, 1);
+          else if (strcmp(topicOptions[i].topic_suffix, "water_height") == 0) val = String(water_height, 1);
+          else if (strcmp(topicOptions[i].topic_suffix, "water_percent") == 0) val = String(percent, 0);
+          else if (strcmp(topicOptions[i].topic_suffix, "water_volume") == 0) val = String(volume_liters, 1);
+          else if (strcmp(topicOptions[i].topic_suffix, "water_temp") == 0) val = String(current_temp, 1);
+          mqtt.publish(topic.c_str(), val.c_str());
+        }
+      }
+    }
   }
 }
