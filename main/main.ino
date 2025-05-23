@@ -24,6 +24,8 @@ float current_temp = 0.0;
 #define ECHO_PIN 18
 
 Preferences prefs;
+int tank_shape = 0; // 0 = rectangle, 1 = round
+float tank_diameter_cm = 0; // utilisé si tank_shape==1
 float tank_height_cm = 0;
 float tank_length_cm = 0;
 float tank_width_cm = 0;
@@ -51,14 +53,20 @@ const int NUM_TOPICS = sizeof(topicOptions) / sizeof(TopicOption);
 
 
 float measureDistance() {
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-  long duration = pulseIn(ECHO_PIN, HIGH);
-  return duration * 0.0343 / 2.0;
+  float sum = 0;
+  int samples = 5;
+  for (int i = 0; i < samples; ++i) {
+    digitalWrite(TRIG_PIN, LOW); delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+    long duration = pulseIn(ECHO_PIN, HIGH, 30000); // timeout 30ms (évite blocage)
+    float dist = duration * 0.0343 / 2.0;
+    sum += dist;
+    delay(10); // temps pour la stabilité
+  }
+  return sum / samples;
 }
+
 
 void handleRoot() {
   String html = R"rawliteral(
@@ -208,6 +216,16 @@ void handleRoot() {
     }
     setInterval(fetchData, 2000);
     window.onload = fetchData;
+
+          document.addEventListener('DOMContentLoaded', function(){
+        var form = document.getElementById('calibForm');
+        form.onsubmit = function(ev){
+          if(!confirm("Are you sure you want to calibrate the maximum water height?\nThis will overwrite the current calibration.")){
+            ev.preventDefault();
+            return false;
+          }
+        };
+      });
   </script>
   </head>
   <body>
@@ -224,9 +242,10 @@ void handleRoot() {
     </table>
       <a href="/settings">⚙️ Settings -></a>
       <span></span>
-      <form>
-      <button type="submit">Calibrate Max Water Height</button>
-      </form>
+    <form id="calibForm" method="POST" action="/calibrate">
+      <button type="submit" id="calibBtn">Calibrate Max Water Height</button>
+    </form>
+
   </div>
   </body>
   </html>
@@ -372,24 +391,42 @@ void handleSettings() {
   <body>
     <div class="container">
       <h2>⚙️ Settings</h2>
-
+        
         <!-- Tank Settings Section -->
         <div class="setting-section">
-          <form method="POST" action="/settings">
-            <div class="section-title">🛢️ Tank Settings</div>
-            <label>Tank Name:</label>
-            <input type="text" name="tank_name" maxlength="32" value=")rawliteral"
-                + tank_name + R"rawliteral(" required>
-            <label>Sensor Height (cm):</label>
-            <input type="number" step="0.1" name="tank_height" value=")rawliteral"
-                + String(tank_height_cm, 1) + R"rawliteral(" required>
-            <label>Tank Length (cm):</label>
-            <input type="number" step="0.1" name="tank_length" value=")rawliteral"
-                + String(tank_length_cm, 1) + R"rawliteral(" required>
-            <label>Tank Width (cm):</label>
-            <input type="number" step="0.1" name="tank_width" value=")rawliteral"
-                + String(tank_width_cm, 1) + R"rawliteral(" required>
-            <button type="submit">Save</button>
+        <form method="POST" action="/settings">
+          <div class="section-title">🛢️ Tank Settings</div>
+          <label>Tank Name:</label>
+          <input type="text" name="tank_name" maxlength="32" value=")rawliteral"
+              + tank_name + R"rawliteral(" required>
+          <label>Sensor Height (cm):</label>
+          <input type="number" step="0.1" name="tank_height" value=")rawliteral"
+              + String(tank_height_cm, 1) + R"rawliteral(" required>
+        )rawliteral";
+          html += "<label>Tank Shape:</label>";
+          html += "<select name='tank_shape' id='tank_shape'>";
+          html += "<option value='0'";
+          if (tank_shape == 0) html += " selected";
+          html += ">Rectangular</option>";
+          html += "<option value='1'";
+          if (tank_shape == 1) html += " selected";
+          html += ">Round (cylinder)</option>";
+          html += "</select>";
+
+          html += "<div id='rect_fields'>";
+          html += "<label>Tank Length (cm):</label>";
+          html += "<input type='number' step='0.1' name='tank_length' value='" + String(tank_length_cm, 1) + "'>";
+          html += "<label>Tank Width (cm):</label>";
+          html += "<input type='number' step='0.1' name='tank_width' value='" + String(tank_width_cm, 1) + "'>";
+          html += "</div>";
+
+          html += "<div id='cyl_fields'>";
+          html += "<label>Tank Diameter (cm):</label>";
+          html += "<input type='number' step='0.1' name='tank_diameter' value='" + String(tank_diameter_cm, 1) + "'>";
+          html += "</div>";
+        html += R"rawliteral(
+
+          <button type="submit">Save</button>
           </form>
         </div>
 
@@ -412,28 +449,28 @@ void handleSettings() {
             </div>
           </form>)rawliteral";
 
-  html += "<div class=\"setting-section\">";
-  html += "<div class=\"section-title\">Topics</div>";
-  html += "<form method=\"POST\" action=\"/topics\">";
-  html += "<table style=\"width:100%;\">";
-  for (int i = 0; i < NUM_TOPICS; ++i) {
-    html += "<tr><td>";
-    // Display prefix + suffix (full topic)
-    html += tank_name;
-    html += "/";
-    html += topicOptions[i].topic_suffix;
-    html += "</td><td style='text-align:right'><input type='checkbox' name='enable_";
-    html += topicOptions[i].topic_suffix;
-    html += "' ";
-    if (topicOptions[i].enabled) html += "checked";
-    html += "></td></tr>";
-  }
-  html += "</table>";
-  html += "<button type='submit'>Save Topics</button>";
-  html += "</form></div>";
+          html += "<div class=\"setting-section\">";
+          html += "<div class=\"section-title\">Topics</div>";
+          html += "<form method=\"POST\" action=\"/topics\">";
+          html += "<table style=\"width:100%;\">";
+          for (int i = 0; i < NUM_TOPICS; ++i) {
+            html += "<tr><td>";
+            // Display prefix + suffix (full topic)
+            html += tank_name;
+            html += "/";
+            html += topicOptions[i].topic_suffix;
+            html += "</td><td style='text-align:right'><input type='checkbox' name='enable_";
+            html += topicOptions[i].topic_suffix;
+            html += "' ";
+            if (topicOptions[i].enabled) html += "checked";
+            html += "></td></tr>";
+          }
+          html += "</table>";
+          html += "<button type='submit'>Save Topics</button>";
+          html += "</form></div>";
 
 
-  html += R"rawliteral(</div>
+          html += R"rawliteral(</div>
 
         <div class="setting-section">
           <div class="section-title">🛠️ Other Topic</div>
@@ -477,6 +514,14 @@ void handleSettings() {
         return false;
       };
 
+      function updateTankFields() {
+        var shape = document.getElementById('tank_shape').value;
+        document.getElementById('rect_fields').style.display = (shape == '0') ? 'block' : 'none';
+        document.getElementById('cyl_fields').style.display = (shape == '1') ? 'block' : 'none';
+      }
+      window.onload = updateTankFields;
+      document.getElementById('tank_shape').onchange = updateTankFields;
+
     </script>
 
   </body>
@@ -488,11 +533,15 @@ void handleSettings() {
 
 void handleSettingsSave() {
   if (server.hasArg("tank_name")) tank_name = server.arg("tank_name");
+  if (server.hasArg("tank_shape")) tank_shape = server.arg("tank_shape").toInt();
+  if (server.hasArg("tank_diameter")) tank_diameter_cm = server.arg("tank_diameter").toFloat();
   if (server.hasArg("tank_height")) tank_height_cm = server.arg("tank_height").toFloat();
   if (server.hasArg("tank_length")) tank_length_cm = server.arg("tank_length").toFloat();
   if (server.hasArg("tank_width")) tank_width_cm = server.arg("tank_width").toFloat();
 
   prefs.begin("cuve", false);
+  prefs.putInt("tank_shape", tank_shape);
+  prefs.putFloat("tank_diameter", tank_diameter_cm);
   prefs.putString("tank_name", tank_name);
   prefs.putFloat("tank_height", tank_height_cm);
   prefs.putFloat("tank_length", tank_length_cm);
@@ -555,7 +604,14 @@ void handleData() {
   float distance = measureDistance();
   float water_height = max(0.0f, tank_height_cm - distance);
   float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
-  float volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
+  float volume_liters;
+  if (tank_shape == 1) {
+      // Cylindrique
+      volume_liters = (PI * pow(tank_diameter_cm/2, 2) * water_height) / 1000.0;
+  } else {
+      // Rectangulaire
+      volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
+  }
 
   String json = "{";
   json += "\"distance\":" + String(distance, 1) + ",";
@@ -585,6 +641,8 @@ void setup() {
   pinMode(ECHO_PIN, INPUT);
 
   prefs.begin("cuve", true);
+  tank_shape = prefs.getInt("tank_shape", 0);
+  tank_diameter_cm = prefs.getFloat("tank_diameter", 0.0);
   tank_name = prefs.getString("tank_name", "WaterTank");
   tank_height_cm = prefs.getFloat("tank_height", 120.0);
   tank_length_cm = prefs.getFloat("tank_length", 50.0);
