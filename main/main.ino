@@ -6,37 +6,25 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-
-String mqtt_host = "";
-String mqtt_username = "";
-String mqtt_password = "";
-
-// DS18B20
-#define ONE_WIRE_BUS 21
-
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-
-float current_temp = 0.0;
-
 // AJ-SRO4M
 #define TRIG_PIN 5
 #define ECHO_PIN 18
 
-Preferences prefs;
-int tank_shape = 0; // 0 = rectangle, 1 = round
-float tank_diameter_cm = 0; // utilisé si tank_shape==1
-float tank_height_cm = 0;
-float tank_length_cm = 0;
-float tank_width_cm = 0;
-float eau_max_cm = 0;
-float cuve_volume_l = 0;
+// DS18B20
+#define ONE_WIRE_BUS 21
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
-String tank_name = "WaterTank";
+Preferences prefs;
 
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
 WebServer server(80);
+
+//Mqtt
+String mqtt_host = "";
+String mqtt_username = "";
+String mqtt_password = "";
 
 struct TopicOption {
   const char* topic_suffix;
@@ -51,25 +39,42 @@ TopicOption topicOptions[] = {
 };
 const int NUM_TOPICS = sizeof(topicOptions) / sizeof(TopicOption);
 
-int temp_refresh_ms = 2000;    // intervalle en millisecondes (par défaut : 2s)
-int mqtt_publish_ms = 5000;    // intervalle en millisecondes (par défaut : 5s)
+int temp_refresh_ms = 2000;
+int mqtt_publish_ms = 5000;
+
+unsigned long lastMqttAttempt = 0;
+
+// Tank Data
+String tank_name = "WaterTank";
+int tank_shape = 0;
+float current_temp = 0.0;
+float tank_diameter_cm = 0;
+float tank_height_cm = 0;
+float tank_length_cm = 0;
+float tank_width_cm = 0;
+float eau_max_cm = 0;
+float cuve_volume_l = 0;
+
 
 float measureDistance() {
   float sum = 0;
   int samples = 5;
   for (int i = 0; i < samples; ++i) {
-    digitalWrite(TRIG_PIN, LOW); delayMicroseconds(2);
-    digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
     digitalWrite(TRIG_PIN, LOW);
-    long duration = pulseIn(ECHO_PIN, HIGH, 30000); // timeout 30ms (évite blocage)
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+    long duration = pulseIn(ECHO_PIN, HIGH, 30000);
     float dist = duration * 0.0343 / 2.0;
     sum += dist;
-    delay(10); // temps pour la stabilité
+    delay(10);
   }
   return sum / samples;
 }
 
 
+// Web HTML
 void handleRoot() {
   String html = R"rawliteral(
   <!DOCTYPE html>
@@ -430,33 +435,33 @@ void handleSettings() {
           <div class="section-title">🛢️ Tank Settings</div>
           <label>Tank Name:</label>
           <input type="text" name="tank_name" maxlength="32" value=")rawliteral"
-              + tank_name + R"rawliteral(" required>
+                + tank_name + R"rawliteral(" required>
           <label>Sensor Height (cm):</label>
           <input type="number" step="0.1" name="tank_height" value=")rawliteral"
-              + String(tank_height_cm, 1) + R"rawliteral(" required>
+                + String(tank_height_cm, 1) + R"rawliteral(" required>
         )rawliteral";
-          html += "<label>Tank Shape:</label>";
-          html += "<select name='tank_shape' id='tank_shape'>";
-          html += "<option value='0'";
-          if (tank_shape == 0) html += " selected";
-          html += ">Rectangular</option>";
-          html += "<option value='1'";
-          if (tank_shape == 1) html += " selected";
-          html += ">Round (cylinder)</option>";
-          html += "</select>";
+  html += "<label>Tank Shape:</label>";
+  html += "<select name='tank_shape' id='tank_shape'>";
+  html += "<option value='0'";
+  if (tank_shape == 0) html += " selected";
+  html += ">Rectangular</option>";
+  html += "<option value='1'";
+  if (tank_shape == 1) html += " selected";
+  html += ">Round (cylinder)</option>";
+  html += "</select>";
 
-          html += "<div id='rect_fields'>";
-          html += "<label>Tank Length (cm):</label>";
-          html += "<input type='number' step='0.1' name='tank_length' value='" + String(tank_length_cm, 1) + "'>";
-          html += "<label>Tank Width (cm):</label>";
-          html += "<input type='number' step='0.1' name='tank_width' value='" + String(tank_width_cm, 1) + "'>";
-          html += "</div>";
+  html += "<div id='rect_fields'>";
+  html += "<label>Tank Length (cm):</label>";
+  html += "<input type='number' step='0.1' name='tank_length' value='" + String(tank_length_cm, 1) + "'>";
+  html += "<label>Tank Width (cm):</label>";
+  html += "<input type='number' step='0.1' name='tank_width' value='" + String(tank_width_cm, 1) + "'>";
+  html += "</div>";
 
-          html += "<div id='cyl_fields'>";
-          html += "<label>Tank Diameter (cm):</label>";
-          html += "<input type='number' step='0.1' name='tank_diameter' value='" + String(tank_diameter_cm, 1) + "'>";
-          html += "</div>";
-        html += R"rawliteral(
+  html += "<div id='cyl_fields'>";
+  html += "<label>Tank Diameter (cm):</label>";
+  html += "<input type='number' step='0.1' name='tank_diameter' value='" + String(tank_diameter_cm, 1) + "'>";
+  html += "</div>";
+  html += R"rawliteral(
 
           <button type="submit">Save</button>
           </form>
@@ -468,46 +473,46 @@ void handleSettings() {
           <form id="mqttForm" method="POST" action="/mqtt_connect" style="margin-bottom:0">
             <label>MQTT Server:</label>
             <input type="text" name="mqtt_host" value=")rawliteral"
-                + mqtt_host + R"rawliteral(" required>
+          + mqtt_host + R"rawliteral(" required>
             <label>MQTT Username:</label>
             <input type="text" name="mqtt_user" value=")rawliteral"
-                + mqtt_username + R"rawliteral(">
+          + mqtt_username + R"rawliteral(">
             <label>MQTT Password:</label>
             <input type="password" name="mqtt_pass" value=")rawliteral"
-                + mqtt_password + R"rawliteral(" autocomplete="off">
+          + mqtt_password + R"rawliteral(" autocomplete="off">
             <div style="margin-top:1em;">
               <span id="mqttStatus" style="font-weight:bold;">Status: Checking...</span>
               <button type="submit" style="margin-left:12px;">Connect</button>
             </div>
           </form>)rawliteral";
 
-          html += "<div class=\"setting-section\">";
-          html += "<div class=\"section-title\">Topics</div>";
-          html += "<form method=\"POST\" action=\"/topics\">";
-          html += "<table style=\"width:100%;\">";
-          for (int i = 0; i < NUM_TOPICS; ++i) {
-            html += "<tr><td>";
-            // Display prefix + suffix (full topic)
-            html += tank_name;
-            html += "/";
-            html += topicOptions[i].topic_suffix;
-            html += "</td><td style='text-align:right'><input type='checkbox' name='enable_";
-            html += topicOptions[i].topic_suffix;
-            html += "' ";
-            if (topicOptions[i].enabled) html += "checked";
-            html += "></td></tr>";
-          }
-          html += "</table>";
+  html += "<div class=\"setting-section\">";
+  html += "<div class=\"section-title\">Topics</div>";
+  html += "<form method=\"POST\" action=\"/topics\">";
+  html += "<table style=\"width:100%;\">";
+  for (int i = 0; i < NUM_TOPICS; ++i) {
+    html += "<tr><td>";
+    // Display prefix + suffix (full topic)
+    html += tank_name;
+    html += "/";
+    html += topicOptions[i].topic_suffix;
+    html += "</td><td style='text-align:right'><input type='checkbox' name='enable_";
+    html += topicOptions[i].topic_suffix;
+    html += "' ";
+    if (topicOptions[i].enabled) html += "checked";
+    html += "></td></tr>";
+  }
+  html += "</table>";
 
-          html += "<label>MQTT publish period (seconds):</label>";
-          html += "<input type='number' min='1' max='3600' name='mqtt_publish' value='" + String(mqtt_publish_ms/1000) + "' required>";
-
-
-          html += "<button type='submit'>Save Topics</button>";
-          html += "</form></div>";
+  html += "<label>MQTT publish period (seconds):</label>";
+  html += "<input type='number' min='1' max='3600' name='mqtt_publish' value='" + String(mqtt_publish_ms / 1000) + "' required>";
 
 
-          html += R"rawliteral(</div>
+  html += "<button type='submit'>Save Topics</button>";
+  html += "</form></div>";
+
+
+  html += R"rawliteral(</div>
 
         <div class="setting-section">
           <div class="section-title">🛠️ Other Topic</div>
@@ -568,6 +573,8 @@ void handleSettings() {
   server.send(200, "text/html", html);
 }
 
+
+// Data Save Handle
 void handleSettingsSave() {
   if (server.hasArg("tank_name")) tank_name = server.arg("tank_name");
   if (server.hasArg("tank_shape")) tank_shape = server.arg("tank_shape").toInt();
@@ -575,9 +582,7 @@ void handleSettingsSave() {
   if (server.hasArg("tank_height")) tank_height_cm = server.arg("tank_height").toFloat();
   if (server.hasArg("tank_length")) tank_length_cm = server.arg("tank_length").toFloat();
   if (server.hasArg("tank_width")) tank_width_cm = server.arg("tank_width").toFloat();
-
-  if(server.hasArg("temp_refresh")) temp_refresh_ms = server.arg("temp_refresh").toInt() * 1000;
-  if(server.hasArg("mqtt_publish")) mqtt_publish_ms = server.arg("mqtt_publish").toInt() * 1000;
+  if (server.hasArg("temp_refresh")) temp_refresh_ms = server.arg("temp_refresh").toInt() * 1000;  // TODO Check temp save
 
   prefs.begin("cuve", false);
   prefs.putInt("tank_shape", tank_shape);
@@ -586,20 +591,77 @@ void handleSettingsSave() {
   prefs.putFloat("tank_height", tank_height_cm);
   prefs.putFloat("tank_length", tank_length_cm);
   prefs.putFloat("tank_width", tank_width_cm);
-
   prefs.putInt("temp_refresh_ms", temp_refresh_ms);
-  prefs.putInt("mqtt_publish_ms", mqtt_publish_ms);
   prefs.end();
 
   server.sendHeader("Location", "/settings");
   server.send(303);
 }
 
-void handleMqttStatus() {
-  String json = String("{\"connected\":") + (mqtt.connected() ? "true" : "false") + "}";
+void handleTopicsSave() {
+  prefs.begin("cuve", false);
+  if (server.hasArg("mqtt_publish")) mqtt_publish_ms = server.arg("mqtt_publish").toInt() * 1000;
+  prefs.putInt("mqtt_publish_ms", mqtt_publish_ms);
+  for (int i = 0; i < NUM_TOPICS; ++i) {
+    String field = String("enable_") + topicOptions[i].topic_suffix;
+    if (server.hasArg(field)) {
+      topicOptions[i].enabled = true;
+    } else {
+      topicOptions[i].enabled = false;
+    }
+    prefs.putBool(topicOptions[i].topic_suffix, topicOptions[i].enabled);
+  }
+  prefs.end();
+  server.sendHeader("Location", "/settings");
+  server.send(303);
+}
+
+
+// Handle Data
+void handleCalibrate() {
+  eau_max_cm = tank_height_cm - measureDistance();
+  prefs.begin("cuve", false);
+  prefs.putFloat("eau_max", eau_max_cm);
+  prefs.end();
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+void handleData() {
+  float distance = measureDistance();
+  float water_height = max(0.0f, tank_height_cm - distance);
+  float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
+  float volume_liters;
+  if (tank_shape == 1) {
+    // Cylindrique
+    volume_liters = (PI * pow(tank_diameter_cm / 2, 2) * water_height) / 1000.0;
+  } else {
+    // Rectangulaire
+    volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
+  }
+
+  String json = "{";
+  json += "\"distance\":" + String(distance, 1) + ",";
+  json += "\"water_height\":" + String(water_height, 1) + ",";
+  json += "\"percent\":" + String(percent, 0) + ",";
+  json += "\"volume_liters\":" + String(volume_liters, 1) + ",";
+  json += "\"temp\":" + String(current_temp, 1);
+  json += "}";
   server.send(200, "application/json", json);
 }
 
+void handleTempSettingsSave() {
+  if (server.hasArg("temp_refresh")) temp_refresh_ms = server.arg("temp_refresh").toInt() * 1000;
+  prefs.begin("cuve", false);
+  prefs.putInt("temp_refresh_ms", temp_refresh_ms);
+  prefs.end();
+
+  server.sendHeader("Location", "/settings");
+  server.send(303);
+}
+
+
+// Mqtt
 void handleMqttConnect() {
   if (server.hasArg("mqtt_host")) mqtt_host = server.arg("mqtt_host");
   if (server.hasArg("mqtt_user")) mqtt_username = server.arg("mqtt_user");
@@ -618,68 +680,10 @@ void handleMqttConnect() {
   server.send(200, "application/json", json);
 }
 
-void handleCalibrate() {
-  eau_max_cm = tank_height_cm - measureDistance();
-  prefs.begin("cuve", false);
-  prefs.putFloat("eau_max", eau_max_cm);
-  prefs.end();
-  server.sendHeader("Location", "/");
-  server.send(303);
-}
-
-void handleTopicsSave() {
-  prefs.begin("cuve", false);
-  if(server.hasArg("mqtt_publish")) mqtt_publish_ms = server.arg("mqtt_publish").toInt() * 1000;
-  prefs.putInt("mqtt_publish_ms", mqtt_publish_ms);
-  for (int i = 0; i < NUM_TOPICS; ++i) {
-    String field = String("enable_") + topicOptions[i].topic_suffix;
-    if (server.hasArg(field)) {
-      topicOptions[i].enabled = true;
-    } else {
-      topicOptions[i].enabled = false;
-    }
-    prefs.putBool(topicOptions[i].topic_suffix, topicOptions[i].enabled);
-  }
-  prefs.end();
-  server.sendHeader("Location", "/settings");
-  server.send(303);
-}
-
-void handleTempSettingsSave() {
-  if (server.hasArg("temp_refresh")) temp_refresh_ms = server.arg("temp_refresh").toInt() * 1000;
-  prefs.begin("cuve", false);
-  prefs.putInt("temp_refresh_ms", temp_refresh_ms);
-  prefs.end();
-
-  server.sendHeader("Location", "/settings");
-  server.send(303);
-}
-
-
-void handleData() {
-  float distance = measureDistance();
-  float water_height = max(0.0f, tank_height_cm - distance);
-  float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
-  float volume_liters;
-  if (tank_shape == 1) {
-      // Cylindrique
-      volume_liters = (PI * pow(tank_diameter_cm/2, 2) * water_height) / 1000.0;
-  } else {
-      // Rectangulaire
-      volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
-  }
-
-  String json = "{";
-  json += "\"distance\":" + String(distance, 1) + ",";
-  json += "\"water_height\":" + String(water_height, 1) + ",";
-  json += "\"percent\":" + String(percent, 0) + ",";
-  json += "\"volume_liters\":" + String(volume_liters, 1) + ",";
-  json += "\"temp\":" + String(current_temp, 1);
-  json += "}";
+void handleMqttStatus() {
+  String json = String("{\"connected\":") + (mqtt.connected() ? "true" : "false") + "}";
   server.send(200, "application/json", json);
 }
-
-unsigned long lastMqttAttempt = 0;
 
 void mqttReconnect() {
   if (!mqtt.connected() && millis() - lastMqttAttempt > mqtt_publish_ms) {
@@ -687,6 +691,7 @@ void mqttReconnect() {
     mqtt.connect("esp32cuve", mqtt_username.c_str(), mqtt_password.c_str());
   }
 }
+
 
 void setup() {
   Serial.begin(115200);
@@ -713,9 +718,7 @@ void setup() {
   }
   prefs.end();
 
-  // Wifi Chunk
   WiFiManager wifiManager;
-  // wifiManager.resetSettings(); // Uncomment if you want to reset wifi
   wifiManager.autoConnect("Tank_Automation_Config");
   Serial.println("WiFi connected: ");
   Serial.println(WiFi.localIP());
@@ -728,7 +731,6 @@ void setup() {
 
   mqtt.setServer(mqtt_host.c_str(), 1883);
 
-  // Server Chunk
   server.on("/", handleRoot);
   server.on("/calibrate", HTTP_POST, handleCalibrate);
   server.on("/data", handleData);
@@ -741,20 +743,24 @@ void setup() {
   server.begin();
 }
 
+
 void loop() {
-  mqttReconnect();
-  mqtt.loop();
+
   server.handleClient();
+
 
   static unsigned long lastTempRead = 0;
   if (millis() - lastTempRead > temp_refresh_ms) {
     sensors.requestTemperatures();
-    current_temp = sensors.getTempCByIndex(0);  // 0 si une seule sonde
+    current_temp = sensors.getTempCByIndex(0);
     lastTempRead = millis();
   }
 
+
+  mqttReconnect();
+  mqtt.loop();
   static unsigned long lastMqttPublish = 0;
-  if (millis() - lastMqttPublish > mqtt_publish_ms) {  // Publie toutes les 5 sec (ajuste si besoin)
+  if (millis() - lastMqttPublish > mqtt_publish_ms) {
     lastMqttPublish = millis();
 
     float distance = measureDistance();
