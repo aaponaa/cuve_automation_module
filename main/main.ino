@@ -5,15 +5,24 @@
 #include <PubSubClient.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <DHT.h>
+
+// DHT22
+#define DHTPIN 19  
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+
+float outside_temp = 0.0;
+float outside_humi = 0.0;
 
 // SRD-05VDC-SL-C
 #define RELAY_PIN 23
 
-bool relay_state = false; 
-bool relay_inverted = true; 
+bool relay_state = false;
+bool relay_inverted = true;
 
 // AJ-SRO4M
-#define TRIG_PIN 5
+#define TRIG_PIN 17
 #define ECHO_PIN 18
 
 // DS18B20
@@ -33,17 +42,22 @@ String mqtt_username = "";
 String mqtt_password = "";
 
 struct TopicOption {
+  const char* label;
   const char* topic_suffix;
   bool enabled;
 };
 TopicOption topicOptions[] = {
-  { "water_distance", true },
-  { "water_height", true },
-  { "water_percent", true },
-  { "water_volume", true },
-  { "water_temp", true }
+  {"Distance (sensor → water)", "water_distance", true},
+  {"Water Height", "water_height", true},
+  {"Fill Percentage", "water_percent", true},
+  {"Estimated Volume", "water_volume", true},
+  {"Temperature (Water)", "water_temp", true},
+  {"Outside Temperature", "outside_temp", true},
+  {"Outside Humidity", "outside_humi", true},
+  {"Pump State", "relay_state", true}
 };
-const int NUM_TOPICS = sizeof(topicOptions) / sizeof(TopicOption);
+const int NUM_TOPICS = sizeof(topicOptions)/sizeof(TopicOption);
+
 
 int temp_refresh_ms = 2000;
 int mqtt_publish_ms = 5000;
@@ -222,6 +236,8 @@ void handleRoot() {
       const res = await fetch('/data');
       const data = await res.json();
       document.getElementById('temp').innerText = data.temp !== undefined ? data.temp + ' °C' : '--';
+      document.getElementById('outside_temp').innerText = (data.outside_temp !== undefined && data.outside_temp > -50) ? data.outside_temp + ' °C' : '--';
+      document.getElementById('outside_humi').innerText = (data.outside_humi !== undefined && data.outside_humi >= 0) ? data.outside_humi + ' %' : '--';
       document.getElementById('dist').innerText = data.distance + ' cm';
       document.getElementById('water').innerText = data.water_height + ' cm';
       document.getElementById('percent').innerText = data.percent + ' %';
@@ -262,6 +278,8 @@ void handleRoot() {
     <table>
       <tr><th>Parameter</th><th>Value</th></tr>
       <tr><td>Temperature</td><td id="temp">--</td></tr>
+      <tr><td>Outside Temperature</td><td id="outside_temp">--</td></tr>
+      <tr><td>Outside Humidity</td><td id="outside_humi">--</td></tr>
       <tr><td>Distance (sensor → water)</td><td id="dist">--</td></tr>
       <tr><td>Water Height</td><td id="water">--</td></tr>
       <tr><td>Fill Percentage</td><td id="percent">--</td></tr>
@@ -682,6 +700,8 @@ void handleData() {
   json += "\"percent\":" + String(percent, 0) + ",";
   json += "\"volume_liters\":" + String(volume_liters, 1) + ",";
   json += "\"temp\":" + String(current_temp, 1) + ",";
+  json += "\"outside_temp\":" + String(isnan(outside_temp) ? -99 : outside_temp, 1) + ",";
+  json += "\"outside_humi\":" + String(isnan(outside_humi) ? -1 : outside_humi, 1) + ",";
   json += "\"relay_state\":" + String(relay_state ? "true" : "false");
   json += "}";
 
@@ -705,7 +725,7 @@ void handleFactoryReset() {
   prefs.end();
 
   // (Optionnel) Efface le WiFiManager (reset WiFi)
-  WiFi.disconnect(true, true); // Efface config WiFi
+  WiFi.disconnect(true, true);  // Efface config WiFi
 
   server.send(200, "text/html", "<html><body><h2>Device has been reset.<br>Restarting...</h2></body></html>");
   delay(1500);
@@ -767,9 +787,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 void setup() {
   Serial.begin(115200);
 
+  dht.begin();
+
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, relay_inverted ? HIGH : LOW);
-  
+
   temp_refresh_ms = prefs.getInt("temp_refresh_ms", 2000);
   mqtt_publish_ms = prefs.getInt("mqtt_publish_ms", 5000);
 
@@ -831,6 +853,12 @@ void loop() {
 
   server.handleClient();
 
+  static unsigned long lastDhtRead = 0;
+  if (millis() - lastDhtRead > temp_refresh_ms) {
+    outside_temp = dht.readTemperature();
+    outside_humi = dht.readHumidity();
+    lastDhtRead = millis();
+  }
 
   static unsigned long lastTempRead = 0;
   if (millis() - lastTempRead > temp_refresh_ms) {
@@ -863,7 +891,9 @@ void loop() {
           else if (strcmp(topicOptions[i].topic_suffix, "water_percent") == 0) val = String(percent, 0);
           else if (strcmp(topicOptions[i].topic_suffix, "water_volume") == 0) val = String(volume_liters, 1);
           else if (strcmp(topicOptions[i].topic_suffix, "water_temp") == 0) val = String(current_temp, 1);
-          mqtt.publish((prefix + "/relay_state").c_str(), relay_state ? "ON" : "OFF");
+          else if (strcmp(topicOptions[i].topic_suffix, "outside_temp") == 0) val = String(outside_temp, 1);
+          else if (strcmp(topicOptions[i].topic_suffix, "outside_humi") == 0) val = String(outside_humi, 1);
+          else if (strcmp(topicOptions[i].topic_suffix, "relay_state") == 0) val = relay_state ? "ON" : "OFF";
           mqtt.publish(topic.c_str(), val.c_str());
         }
       }
