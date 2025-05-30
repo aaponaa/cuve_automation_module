@@ -8,7 +8,7 @@
 #include <DHT.h>
 
 // DHT22
-#define DHTPIN 19  
+#define DHTPIN 33 
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -16,17 +16,17 @@ float outside_temp = 0.0;
 float outside_humi = 0.0;
 
 // SRD-05VDC-SL-C
-#define RELAY_PIN 23
+#define RELAY_PIN 27
 
 bool relay_state = false;
 bool relay_inverted = true;
 
 // AJ-SRO4M
 #define TRIG_PIN 17
-#define ECHO_PIN 18
+#define ECHO_PIN 16
 
 // DS18B20
-#define ONE_WIRE_BUS 21
+#define ONE_WIRE_BUS 18
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
@@ -77,20 +77,28 @@ float cuve_volume_l = 0;
 
 
 float measureDistance() {
-  float sum = 0;
-  int samples = 5;
-  for (int i = 0; i < samples; ++i) {
+  const int NUM_SAMPLES = 5;
+  float readings[NUM_SAMPLES];
+  
+  for (int i = 0; i < NUM_SAMPLES; i++) {
     digitalWrite(TRIG_PIN, LOW);
     delayMicroseconds(2);
     digitalWrite(TRIG_PIN, HIGH);
     delayMicroseconds(10);
     digitalWrite(TRIG_PIN, LOW);
+    
     long duration = pulseIn(ECHO_PIN, HIGH, 30000);
-    float dist = duration * 0.0343 / 2.0;
-    sum += dist;
+    if (duration == 0) {
+      i--; // Retry this measurement
+      continue;
+    }
+    readings[i] = duration * 0.0343 / 2.0;
     delay(10);
   }
-  return sum / samples;
+  
+  // Sort and take median instead of average
+  std::sort(readings, readings + NUM_SAMPLES);
+  return readings[NUM_SAMPLES / 2];
 }
 
 
@@ -734,6 +742,9 @@ void handleFactoryReset() {
 
 void handleRelayToggle() {
   relay_state = !relay_state;
+  prefs.begin("cuve", false);
+  prefs.putBool("relay_state", relay_state);
+  prefs.end();
   digitalWrite(RELAY_PIN, (relay_inverted ? !relay_state : relay_state) ? HIGH : LOW);
   server.sendHeader("Location", "/");
   server.send(303);
@@ -808,11 +819,14 @@ void setup() {
   tank_length_cm = prefs.getFloat("tank_length", 50.0);
   tank_width_cm = prefs.getFloat("tank_width", 40.0);
   eau_max_cm = prefs.getFloat("eau_max", 100.0);
+  relay_state = prefs.getBool("relay_state", false);
 
   for (int i = 0; i < NUM_TOPICS; ++i) {
     topicOptions[i].enabled = prefs.getBool(topicOptions[i].topic_suffix, true);
   }
   prefs.end();
+
+  digitalWrite(RELAY_PIN, (relay_inverted ? !relay_state : relay_state) ? HIGH : LOW);
 
   WiFiManager wifiManager;
   wifiManager.autoConnect("Tank_Automation_Config");
@@ -863,7 +877,10 @@ void loop() {
   static unsigned long lastTempRead = 0;
   if (millis() - lastTempRead > temp_refresh_ms) {
     sensors.requestTemperatures();
-    current_temp = sensors.getTempCByIndex(0);
+    float temp = sensors.getTempCByIndex(0);
+    if (temp != DEVICE_DISCONNECTED_C && temp > -50 && temp < 100) {
+      current_temp = temp;
+    }
     lastTempRead = millis();
   }
 
@@ -877,8 +894,12 @@ void loop() {
     float distance = measureDistance();
     float water_height = max(0.0f, tank_height_cm - distance);
     float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
-    float volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
-
+    float volume_liters;
+    if (tank_shape == 1) {  // Cylindrical
+      volume_liters = (PI * pow(tank_diameter_cm / 2, 2) * water_height) / 1000.0;
+    } else {  // Rectangular
+      volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
+    }
     if (mqtt.connected()) {
       String prefix = tank_name;
       prefix.replace(" ", "_");
