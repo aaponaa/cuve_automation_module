@@ -15,11 +15,12 @@ DHT dht(DHTPIN, DHTTYPE);
 float outside_temp = 0.0;
 float outside_humi = 0.0;
 
-// SRD-05VDC-SL-C
+// SRD-05VDC-SL-C Relay
 #define RELAY_PIN 27
 
-bool relay_state = false;
-bool relay_inverted = true;
+// Relay state management
+bool pump_is_on = false;  // Logical state: true = pump ON, false = pump OFF
+bool relay_active_low = false;  // true = relay activated by LOW signal (most common)
 
 // AJ-SRO4M
 #define TRIG_PIN 17
@@ -41,8 +42,6 @@ String mqtt_host = "";
 String mqtt_username = "";
 String mqtt_password = "";
 
-bool relay_active_low = true;  // Set to true if relay is active LOW (default for most SRD modules)
-
 struct TopicOption {
   const char* label;
   const char* topic_suffix;
@@ -56,10 +55,9 @@ TopicOption topicOptions[] = {
   {"Temperature (Water)", "water_temp", true},
   {"Outside Temperature", "outside_temp", true},
   {"Outside Humidity", "outside_humi", true},
-  {"Pump State", "relay_state", true}
+  {"Pump State", "pump_state", true}
 };
 const int NUM_TOPICS = sizeof(topicOptions)/sizeof(TopicOption);
-
 
 int temp_refresh_ms = 2000;
 int mqtt_publish_ms = 5000;
@@ -77,6 +75,17 @@ float tank_width_cm = 0;
 float eau_max_cm = 0;
 float cuve_volume_l = 0;
 
+// Helper function to set the physical relay state based on logical pump state
+void setRelayPin(bool pumpOn) {
+  if (relay_active_low) {
+    // Active LOW: LOW = ON, HIGH = OFF
+    digitalWrite(RELAY_PIN, pumpOn ? LOW : HIGH);
+  } else {
+    // Active HIGH: HIGH = ON, LOW = OFF
+    digitalWrite(RELAY_PIN, pumpOn ? HIGH : LOW);
+  }
+}
+
 float measureDistance() {
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
@@ -86,7 +95,6 @@ float measureDistance() {
   long duration = pulseIn(ECHO_PIN, HIGH);
   return duration * 0.0343 / 2.0;
 }  
-
 
 // Web HTML
 void handleRoot() {
@@ -238,15 +246,13 @@ void handleRoot() {
       document.getElementById('liters').innerText = data.volume_liters + ' L';
       const pumpCell = document.getElementById('pumpstate');
       if (pumpCell) {
-        // Inverse l'affichage si le relais est actif à l'état bas
-        const isPumpOn = !data.relay_state;  // inversé
-        pumpCell.innerText = isPumpOn ? "ON" : "OFF";
+        // Now pump_is_on directly represents the pump state
+        pumpCell.innerText = data.pump_is_on ? "ON" : "OFF";
         pumpCell.style.fontWeight = "bold";
 
         const pumpBtn = document.getElementById('pumpBtn');
-        if (pumpBtn) pumpBtn.style.background = isPumpOn ? "#00b4d8" : "#adb5bd";
+        if (pumpBtn) pumpBtn.style.background = data.pump_is_on ? "#28a745" : "#6c757d";
       }
-
     }
 
     function togglePump() {
@@ -257,15 +263,15 @@ void handleRoot() {
     setInterval(fetchData, 2000);
     window.onload = fetchData;
 
-          document.addEventListener('DOMContentLoaded', function(){
-        var form = document.getElementById('calibForm');
-        form.onsubmit = function(ev){
-          if(!confirm("Are you sure you want to calibrate the maximum water height?\nThis will overwrite the current calibration.")){
-            ev.preventDefault();
-            return false;
-          }
-        };
-      });
+    document.addEventListener('DOMContentLoaded', function(){
+      var form = document.getElementById('calibForm');
+      form.onsubmit = function(ev){
+        if(!confirm("Are you sure you want to calibrate the maximum water height?\nThis will overwrite the current calibration.")){
+          ev.preventDefault();
+          return false;
+        }
+      };
+    });
   </script>
   </head>
   <body>
@@ -284,18 +290,17 @@ void handleRoot() {
       <tr>
         <td>Pump State</td>
         <td>
-          <button id="pumpBtn" onclick="togglePump()" style="padding:7px 24px;border-radius:8px;background:#00b4d8;color:#fff;font-weight:600;border:none;box-shadow:0 2px 6px #90e0ef88;cursor:pointer;">
+          <button id="pumpBtn" onclick="togglePump()" style="padding:7px 24px;border-radius:8px;background:#6c757d;color:#fff;font-weight:600;border:none;box-shadow:0 2px 6px rgba(0,0,0,0.2);cursor:pointer;">
             <span id="pumpstate">--</span>
           </button>
         </td>
       </tr>
     </table>
-      <a href="/settings">⚙️ Settings -></a>
-      <span></span>
+    <a href="/settings">⚙️ Settings →</a>
+    <span></span>
     <form id="calibForm" method="POST" action="/calibrate">
       <button type="submit" id="calibBtn">Calibrate Max Water Height</button>
     </form>
-
   </div>
   </body>
   </html>
@@ -361,7 +366,7 @@ void handleSettings() {
       align-items: center;
       font-size: 1.1em;
       font-weight: 600;
-    x  margin-bottom: 0.7em;
+      margin-bottom: 0.7em;
       color: #0096c7;
       gap: 0.5em;
       letter-spacing: 0.01em;
@@ -553,7 +558,6 @@ void handleSettings() {
   html += "<button type='submit'>Save</button>";
   html += "</form></div>";
 
-
   html += R"rawliteral(</div>
 
         <div class="setting-section">
@@ -561,11 +565,6 @@ void handleSettings() {
             <form method='POST' action='/factory_reset' onsubmit=\"return confirm('Are you sure you want to factory reset? This will erase all settings and WiFi config!');\">
             <button type='submit' style='background:#e63946; color:#fff; margin-top:18px; border-radius:8px;'>Factory Reset</button>
             </form>
-        </div>
-
-        <div class="setting-section">
-          <div class="section-title">🛠️ Other Topic</div>
-          ...
         </div>
 
       <a href="/">← Back to Dashboard</a>
@@ -609,7 +608,10 @@ void handleSettings() {
         document.getElementById('rect_fields').style.display = (shape == '0') ? 'block' : 'none';
         document.getElementById('cyl_fields').style.display = (shape == '1') ? 'block' : 'none';
       }
-      window.onload = updateTankFields;
+      window.onload = function() {
+        updateTankFields();
+        updateMqttStatus();
+      };
       document.getElementById('tank_shape').onchange = updateTankFields;
 
     </script>
@@ -620,7 +622,6 @@ void handleSettings() {
 
   server.send(200, "text/html", html);
 }
-
 
 // Data Save Handle
 void handleSettingsSave() {
@@ -664,7 +665,6 @@ void handleTopicsSave() {
   server.send(303);
 }
 
-
 // Handle Data
 void handleCalibrate() {
   eau_max_cm = tank_height_cm - measureDistance();
@@ -681,10 +681,10 @@ void handleData() {
   float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
   float volume_liters;
   if (tank_shape == 1) {
-    // Cylindrique
+    // Cylindrical
     volume_liters = (PI * pow(tank_diameter_cm / 2, 2) * water_height) / 1000.0;
   } else {
-    // Rectangulaire
+    // Rectangular
     volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
   }
 
@@ -696,7 +696,7 @@ void handleData() {
   json += "\"temp\":" + String(current_temp, 1) + ",";
   json += "\"outside_temp\":" + String(isnan(outside_temp) ? -99 : outside_temp, 1) + ",";
   json += "\"outside_humi\":" + String(isnan(outside_humi) ? -1 : outside_humi, 1) + ",";
-  json += "\"relay_state\":" + String(relay_state ? "true" : "false");
+  json += "\"pump_is_on\":" + String(pump_is_on ? "true" : "false");
   json += "}";
 
   server.send(200, "application/json", json);
@@ -713,29 +713,36 @@ void handleTempSettingsSave() {
 }
 
 void handleFactoryReset() {
-  // Efface la partition NVS "cuve"
+  // Clear NVS partition "cuve"
   prefs.begin("cuve", false);
   prefs.clear();
   prefs.end();
 
-  // (Optionnel) Efface le WiFiManager (reset WiFi)
-  WiFi.disconnect(true, true);  // Efface config WiFi
+  // Clear WiFi config
+  WiFi.disconnect(true, true);
 
   server.send(200, "text/html", "<html><body><h2>Device has been reset.<br>Restarting...</h2></body></html>");
   delay(1500);
-  ESP.restart();  // Redémarre l'ESP32
+  ESP.restart();
 }
 
 void handleRelayToggle() {
-  relay_state = !relay_state;
+  // Toggle pump state
+  pump_is_on = !pump_is_on;
+  
+  // Save state to preferences
   prefs.begin("cuve", false);
-  prefs.putBool("relay_state", relay_state);
+  prefs.putBool("pump_is_on", pump_is_on);
   prefs.end();
-  digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
+  
+  // Set physical relay pin
+  setRelayPin(pump_is_on);
+  
+  Serial.println("Pump toggled. State: " + String(pump_is_on ? "ON" : "OFF"));
+  
   server.sendHeader("Location", "/");
   server.send(303);
 }
-
 
 // Mqtt
 void handleMqttConnect() {
@@ -754,6 +761,12 @@ void handleMqttConnect() {
   mqtt.setServer(mqtt_host.c_str(), 1883);
   mqtt.connect(clientId.c_str(), mqtt_username.c_str(), mqtt_password.c_str());
 
+  // Subscribe to command topic
+  String prefix = tank_name;
+  prefix.replace(" ", "_");
+  mqtt.subscribe((prefix + "/pump_cmd").c_str());
+  Serial.println("Subscribed to: " + prefix + "/pump_cmd");
+
   String json = String("{\"connected\":") + (mqtt.connected() ? "true" : "false") + "}";
   server.send(200, "application/json", json);
 }
@@ -766,43 +779,65 @@ void handleMqttStatus() {
 void mqttReconnect() {
   if (!mqtt.connected() && millis() - lastMqttAttempt > mqtt_publish_ms) {
     lastMqttAttempt = millis();
-    handleMqttConnect();
+    String clientId = "ESP32Client-" + tank_name;
+    if (mqtt.connect(clientId.c_str(), mqtt_username.c_str(), mqtt_password.c_str())) {
+      // Resubscribe on reconnection
+      String prefix = tank_name;
+      prefix.replace(" ", "_");
+      mqtt.subscribe((prefix + "/pump_cmd").c_str());
+      Serial.println("MQTT reconnected and subscribed");
+    }
   }
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
+
+  Serial.print("MQTT message arrived on topic: ");
+  Serial.println(topic);
   String top = String(topic);
-  if (top.endsWith("/relay_cmd")) {
-  String cmd = "";
-  for (unsigned int i = 0; i < length; i++) cmd += (char)payload[i];
-  cmd.trim();
-    if (cmd.equalsIgnoreCase("on")) relay_state = true;
-    else if (cmd.equalsIgnoreCase("off")) relay_state = false;
-    digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
-    Serial.println("Relay toggled!");
+  if (top.endsWith("/pump_cmd")) {
+    String cmd = "";
+    for (unsigned int i = 0; i < length; i++) cmd += (char)payload[i];
+    cmd.trim();
+    
+    if (cmd.equalsIgnoreCase("on")) {
+      pump_is_on = true;
+    } else if (cmd.equalsIgnoreCase("off")) {
+      pump_is_on = false;
+    } else if (cmd.equalsIgnoreCase("toggle")) {
+      pump_is_on = !pump_is_on;
+    } else {
+      Serial.println("Unknown pump command: " + cmd);
+      return;
+    }
+    
+    // Save state and update physical relay
+    prefs.begin("cuve", false);
+    prefs.putBool("pump_is_on", pump_is_on);
+    prefs.end();
+    
+    setRelayPin(pump_is_on);
+    Serial.println("Pump state changed via MQTT: " + String(pump_is_on ? "ON" : "OFF"));
   }
 }
-
-
 
 void setup() {
   Serial.begin(115200);
 
+  // Initialize DHT sensor
   dht.begin();
 
+  // Initialize relay pin
   pinMode(RELAY_PIN, OUTPUT);
 
-  digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
-  digitalWrite(RELAY_PIN, relay_active_low ? HIGH : LOW);
-
-  temp_refresh_ms = prefs.getInt("temp_refresh_ms", 4000);
-  mqtt_publish_ms = prefs.getInt("mqtt_publish_ms", 5000);
-
+  // Initialize DS18B20 temperature sensor
   sensors.begin();
 
+  // Initialize ultrasonic sensor pins
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 
+  // Load settings from preferences
   prefs.begin("cuve", true);
   tank_shape = prefs.getInt("tank_shape", 0);
   tank_diameter_cm = prefs.getFloat("tank_diameter", 0.0);
@@ -811,32 +846,37 @@ void setup() {
   tank_length_cm = prefs.getFloat("tank_length", 50.0);
   tank_width_cm = prefs.getFloat("tank_width", 40.0);
   eau_max_cm = prefs.getFloat("eau_max", 100.0);
-  relay_state = prefs.getBool("relay_state", false);
+  pump_is_on = prefs.getBool("pump_is_on", false);  // Load pump state
+  temp_refresh_ms = prefs.getInt("temp_refresh_ms", 4000);
+  mqtt_publish_ms = prefs.getInt("mqtt_publish_ms", 5000);
 
   for (int i = 0; i < NUM_TOPICS; ++i) {
     topicOptions[i].enabled = prefs.getBool(topicOptions[i].topic_suffix, true);
   }
   prefs.end();
 
+  // Set initial relay state
+  setRelayPin(pump_is_on);
+  Serial.println("Initial pump state: " + String(pump_is_on ? "ON" : "OFF"));
+
+  // WiFi setup
   WiFiManager wifiManager;
   wifiManager.autoConnect("Tank_Automation_Config");
   Serial.println("WiFi connected: ");
   Serial.println(WiFi.localIP());
 
+  // Load MQTT settings
   prefs.begin("cuve", true);
   mqtt_host = prefs.getString("mqtt_host", "");
   mqtt_username = prefs.getString("mqtt_user", "");
   mqtt_password = prefs.getString("mqtt_pass", "");
   prefs.end();
 
+  // MQTT setup
   mqtt.setServer(mqtt_host.c_str(), 1883);
   mqtt.setCallback(mqttCallback);
-  
-  String prefix = tank_name;
-  prefix.replace(" ", "_");
-  mqtt.subscribe((prefix + "/relay_cmd").c_str());
-  Serial.println("Subscribed to: " + prefix + "/relay_cmd");
 
+  // Web server setup
   server.on("/", handleRoot);
   server.on("/data", handleData);
   server.on("/factory_reset", handleFactoryReset);
@@ -851,11 +891,10 @@ void setup() {
   server.begin();
 }
 
-
 void loop() {
-
   server.handleClient();
 
+  // Read DHT sensor
   static unsigned long lastDhtRead = 0;
   if (millis() - lastDhtRead > temp_refresh_ms) {
     outside_temp = dht.readTemperature();
@@ -863,6 +902,7 @@ void loop() {
     lastDhtRead = millis();
   }
 
+  // Read DS18B20 temperature sensor
   static unsigned long lastTempRead = 0;
   if (millis() - lastTempRead > temp_refresh_ms) {
     sensors.requestTemperatures();
@@ -873,9 +913,11 @@ void loop() {
     lastTempRead = millis();
   }
 
-
+  // MQTT handling
   mqttReconnect();
   mqtt.loop();
+  
+  // MQTT publishing
   static unsigned long lastMqttPublish = 0;
   if (millis() - lastMqttPublish > mqtt_publish_ms) {
     lastMqttPublish = millis();
@@ -889,6 +931,7 @@ void loop() {
     } else {  // Rectangular
       volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
     }
+    
     if (mqtt.connected()) {
       String prefix = tank_name;
       prefix.replace(" ", "_");
@@ -903,7 +946,7 @@ void loop() {
           else if (strcmp(topicOptions[i].topic_suffix, "water_temp") == 0) val = String(current_temp, 1);
           else if (strcmp(topicOptions[i].topic_suffix, "outside_temp") == 0) val = String(outside_temp, 1);
           else if (strcmp(topicOptions[i].topic_suffix, "outside_humi") == 0) val = String(outside_humi, 1);
-          else if (strcmp(topicOptions[i].topic_suffix, "relay_state") == 0) val = relay_state ? "ON" : "OFF";
+          else if (strcmp(topicOptions[i].topic_suffix, "pump_state") == 0) val = pump_is_on ? "ON" : "OFF";
           mqtt.publish(topic.c_str(), val.c_str());
         }
       }
