@@ -6,9 +6,13 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <DHT.h>
+#include <ArduinoOTA.h>
+
+// OTA
+bool ota_enabled = false;
 
 // DHT22
-#define DHTPIN 33 
+#define DHTPIN 33
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -19,7 +23,7 @@ float outside_humi = 0.0;
 #define RELAY_PIN 27
 
 // Relay state management
-bool pump_is_on = false;  // Logical state: true = pump ON, false = pump OFF
+bool pump_is_on = false;        // Logical state: true = pump ON, false = pump OFF
 bool relay_active_low = false;  // true = relay activated by LOW signal (most common)
 
 // AJ-SRO4M
@@ -48,16 +52,16 @@ struct TopicOption {
   bool enabled;
 };
 TopicOption topicOptions[] = {
-  {"Distance (sensor → water)", "water_distance", true},
-  {"Water Height", "water_height", true},
-  {"Fill Percentage", "water_percent", true},
-  {"Estimated Volume", "water_volume", true},
-  {"Temperature (Water)", "water_temp", true},
-  {"Outside Temperature", "outside_temp", true},
-  {"Outside Humidity", "outside_humi", true},
-  {"Pump State", "pump_state", true}
+  { "Distance (sensor → water)", "water_distance", true },
+  { "Water Height", "water_height", true },
+  { "Fill Percentage", "water_percent", true },
+  { "Estimated Volume", "water_volume", true },
+  { "Temperature (Water)", "water_temp", true },
+  { "Outside Temperature", "outside_temp", true },
+  { "Outside Humidity", "outside_humi", true },
+  { "Pump State", "pump_state", true }
 };
-const int NUM_TOPICS = sizeof(topicOptions)/sizeof(TopicOption);
+const int NUM_TOPICS = sizeof(topicOptions) / sizeof(TopicOption);
 
 int temp_refresh_ms = 2000;
 int mqtt_publish_ms = 5000;
@@ -94,7 +98,7 @@ float measureDistance() {
   digitalWrite(TRIG_PIN, LOW);
   long duration = pulseIn(ECHO_PIN, HIGH);
   return duration * 0.0343 / 2.0;
-}  
+}
 
 // Web HTML
 void handleRoot() {
@@ -729,17 +733,17 @@ void handleFactoryReset() {
 void handleRelayToggle() {
   // Toggle pump state
   pump_is_on = !pump_is_on;
-  
+
   // Save state to preferences
   prefs.begin("cuve", false);
   prefs.putBool("pump_is_on", pump_is_on);
   prefs.end();
-  
+
   // Set physical relay pin
   setRelayPin(pump_is_on);
-  
+
   Serial.println("Pump toggled. State: " + String(pump_is_on ? "ON" : "OFF"));
-  
+
   server.sendHeader("Location", "/");
   server.send(303);
 }
@@ -799,7 +803,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     String cmd = "";
     for (unsigned int i = 0; i < length; i++) cmd += (char)payload[i];
     cmd.trim();
-    
+
     if (cmd.equalsIgnoreCase("on")) {
       pump_is_on = true;
     } else if (cmd.equalsIgnoreCase("off")) {
@@ -810,22 +814,90 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       Serial.println("Unknown pump command: " + cmd);
       return;
     }
-    
+
     // Save state and update physical relay
     prefs.begin("cuve", false);
     prefs.putBool("pump_is_on", pump_is_on);
     prefs.end();
-    
+
     setRelayPin(pump_is_on);
     Serial.println("Pump state changed via MQTT: " + String(pump_is_on ? "ON" : "OFF"));
   }
 }
 
+void readDHTTask(void* parameter) {
+  // Read DHT sensor
+  static unsigned long lastDhtRead = 0;
+  static int dhtFailCount = 0;
+  const int maxDhtFail = 5;
+  const int dhtRefreshInterval = 2000;
+
+  for (;;) {
+    float new_temp = dht.readTemperature();
+    float new_humi = dht.readHumidity();
+
+    if (!isnan(new_temp) && !isnan(new_humi)) {
+      outside_temp = new_temp;
+      outside_humi = new_humi;
+      dhtFailCount = 0;
+    } else {
+      dhtFailCount++;
+      if (dhtFailCount >= maxDhtFail) {
+        dht.begin();  // Reinit
+        dhtFailCount = 0;
+      }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(5000));  // 5s
+  }
+}
+
+void setupOTA() {
+  ArduinoOTA.setPassword("esp32secure");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("OTA update starting...");
+  });
+
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nOTA update complete.");
+    ota_enabled = false;  // ✅ Auto-disable OTA after upload
+  });
+
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("OTA Progress: %u%%\r", (progress * 100) / total);
+  });
+
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+
+    ota_enabled = false;  // ✅ Auto-disable on failure too
+  });
+
+  ArduinoOTA.begin();
+  Serial.println("OTA ready, waiting for update...");
+}
+
+
+
 void setup() {
   Serial.begin(115200);
 
   // Initialize DHT sensor
-  dht.begin();
+  xTaskCreatePinnedToCore(
+    readDHTTask,
+    "Read DHT22",
+    4096,
+    NULL,
+    1,
+    NULL,
+    1  // Core 1 (laisser core 0 pour le WiFi)
+  );
 
   // Initialize relay pin
   pinMode(RELAY_PIN, OUTPUT);
@@ -888,42 +960,25 @@ void setup() {
   server.on("/topics", HTTP_POST, handleTopicsSave);
   server.on("/temp_settings", HTTP_POST, handleTempSettingsSave);
   server.on("/relay_toggle", HTTP_POST, handleRelayToggle);
+  server.on("/ota", []() {
+    if (!ota_enabled) {
+      ota_enabled = true;
+      Serial.println("Prout");
+      setupOTA();  // 🔄 Initialize OTA only once
+    }
+    server.send(200, "text/plain", "OTA mode enabled. You can now upload new firmware.");
+  });
+
   server.begin();
 }
 
 void loop() {
-  server.handleClient();
-
-  // Read DHT sensor
-  static unsigned long lastDhtRead = 0;
-  static int dhtFailCount = 0;
-  const int maxDhtFail = 5;
-  const int dhtRefreshInterval = 2000;
-
-  if (millis() - lastDhtRead > dhtRefreshInterval) {
-    
-    float new_temp = dht.readTemperature();
-    float new_humi = dht.readHumidity();
-
-    // Check if readings are valid
-    if (isnan(new_temp) || isnan(new_humi)) {
-      Serial.println("DHT22 reading failed.");
-      dhtFailCount++;
-    } else {
-      outside_temp = new_temp;  // Update only if valid
-      outside_humi = new_humi;
-      dhtFailCount = 0;         // Reset failure count on success
-    }
-
-    if (dhtFailCount >= maxDhtFail) {
-      Serial.println("Restarting DHT22 sensor...");
-      dht.begin();
-      dhtFailCount = 0;
-    }
-
-    lastDhtRead = millis();
+  if (ota_enabled) {
+    ArduinoOTA.handle();
+  } else {
+    // your existing loop code (MQTT, sensor readings, etc.)
+    server.handleClient();
   }
-
 
   // Read DS18B20 temperature sensor
   static unsigned long lastTempRead = 0;
@@ -939,7 +994,7 @@ void loop() {
   // MQTT handling
   mqttReconnect();
   mqtt.loop();
-  
+
   // MQTT publishing
   static unsigned long lastMqttPublish = 0;
   if (millis() - lastMqttPublish > mqtt_publish_ms) {
@@ -954,7 +1009,7 @@ void loop() {
     } else {  // Rectangular
       volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
     }
-    
+
     if (mqtt.connected()) {
       String prefix = tank_name;
       prefix.replace(" ", "_");
