@@ -77,8 +77,6 @@ float tank_width_cm = 0;
 float eau_max_cm = 0;
 float cuve_volume_l = 0;
 
-String clientId = "ESP32Client-" + tank_name;
-
 float measureDistance() {
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
@@ -741,6 +739,8 @@ void handleRelayToggle() {
 
 // Mqtt
 void handleMqttConnect() {
+  String clientId = "ESP32Client-" + tank_name;
+
   if (server.hasArg("mqtt_host")) mqtt_host = server.arg("mqtt_host");
   if (server.hasArg("mqtt_user")) mqtt_username = server.arg("mqtt_user");
   if (server.hasArg("mqtt_pass")) mqtt_password = server.arg("mqtt_pass");
@@ -766,21 +766,23 @@ void handleMqttStatus() {
 void mqttReconnect() {
   if (!mqtt.connected() && millis() - lastMqttAttempt > mqtt_publish_ms) {
     lastMqttAttempt = millis();
-    mqtt.connect("esp32cuve", mqtt_username.c_str(), mqtt_password.c_str());
+    handleMqttConnect();
   }
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String top = String(topic);
   if (top.endsWith("/relay_cmd")) {
-    String cmd = "";
-    for (unsigned int i = 0; i < length; i++) cmd += (char)payload[i];
-    cmd.trim();
+  String cmd = "";
+  for (unsigned int i = 0; i < length; i++) cmd += (char)payload[i];
+  cmd.trim();
     if (cmd.equalsIgnoreCase("on")) relay_state = true;
     else if (cmd.equalsIgnoreCase("off")) relay_state = false;
     digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
+    Serial.println("Relay toggled!");
   }
 }
+
 
 
 void setup() {
@@ -829,11 +831,11 @@ void setup() {
 
   mqtt.setServer(mqtt_host.c_str(), 1883);
   mqtt.setCallback(mqttCallback);
-  String subTopic = tank_name;
-  subTopic.replace(" ", "_");
-  subTopic += "/relay_cmd";
-  mqtt.subscribe(subTopic.c_str());
-
+  
+  String prefix = tank_name;
+  prefix.replace(" ", "_");
+  mqtt.subscribe((prefix + "/relay_cmd").c_str());
+  Serial.println("Subscribed to: " + prefix + "/relay_cmd");
 
   server.on("/", handleRoot);
   server.on("/data", handleData);
