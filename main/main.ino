@@ -41,6 +41,8 @@ String mqtt_host = "";
 String mqtt_username = "";
 String mqtt_password = "";
 
+bool relay_active_low = true;  // Set to true if relay is active LOW (default for most SRD modules)
+
 struct TopicOption {
   const char* label;
   const char* topic_suffix;
@@ -75,31 +77,15 @@ float tank_width_cm = 0;
 float eau_max_cm = 0;
 float cuve_volume_l = 0;
 
-
 float measureDistance() {
-  const int NUM_SAMPLES = 5;
-  float readings[NUM_SAMPLES];
-  
-  for (int i = 0; i < NUM_SAMPLES; i++) {
-    digitalWrite(TRIG_PIN, LOW);
-    delayMicroseconds(2);
-    digitalWrite(TRIG_PIN, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(TRIG_PIN, LOW);
-    
-    long duration = pulseIn(ECHO_PIN, HIGH, 30000);
-    if (duration == 0) {
-      i--; // Retry this measurement
-      continue;
-    }
-    readings[i] = duration * 0.0343 / 2.0;
-    delay(10);
-  }
-  
-  // Sort and take median instead of average
-  std::sort(readings, readings + NUM_SAMPLES);
-  return readings[NUM_SAMPLES / 2];
-}
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  return duration * 0.0343 / 2.0;
+}  
 
 
 // Web HTML
@@ -252,10 +238,13 @@ void handleRoot() {
       document.getElementById('liters').innerText = data.volume_liters + ' L';
       const pumpCell = document.getElementById('pumpstate');
       if (pumpCell) {
-        pumpCell.innerText = data.relay_state ? "ON " : "OFF";
+        // Inverse l'affichage si le relais est actif à l'état bas
+        const isPumpOn = !data.relay_state;  // inversé
+        pumpCell.innerText = isPumpOn ? "ON" : "OFF";
         pumpCell.style.fontWeight = "bold";
+
         const pumpBtn = document.getElementById('pumpBtn');
-        if(pumpBtn) pumpBtn.style.background = data.relay_state ? "#00b4d8" : "#adb5bd";
+        if (pumpBtn) pumpBtn.style.background = isPumpOn ? "#00b4d8" : "#adb5bd";
       }
 
     }
@@ -324,9 +313,6 @@ void handleSettings() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background: linear-gradient(135deg, #e0f7fa 0%, #a7c8ff 100%);
-      color: #003049;
       margin: 0;
       min-height: 100vh;
       padding: 0;
@@ -745,7 +731,7 @@ void handleRelayToggle() {
   prefs.begin("cuve", false);
   prefs.putBool("relay_state", relay_state);
   prefs.end();
-  digitalWrite(RELAY_PIN, (relay_inverted ? !relay_state : relay_state) ? HIGH : LOW);
+  digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
   server.sendHeader("Location", "/");
   server.send(303);
 }
@@ -790,7 +776,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     cmd.trim();
     if (cmd.equalsIgnoreCase("on")) relay_state = true;
     else if (cmd.equalsIgnoreCase("off")) relay_state = false;
-    digitalWrite(RELAY_PIN, (relay_inverted ? !relay_state : relay_state) ? HIGH : LOW);
+    digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
   }
 }
 
@@ -801,9 +787,9 @@ void setup() {
   dht.begin();
 
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, relay_inverted ? HIGH : LOW);
+  digitalWrite(RELAY_PIN, relay_active_low ? HIGH : LOW);
 
-  temp_refresh_ms = prefs.getInt("temp_refresh_ms", 2000);
+  temp_refresh_ms = prefs.getInt("temp_refresh_ms", 4000);
   mqtt_publish_ms = prefs.getInt("mqtt_publish_ms", 5000);
 
   sensors.begin();
@@ -826,7 +812,7 @@ void setup() {
   }
   prefs.end();
 
-  digitalWrite(RELAY_PIN, (relay_inverted ? !relay_state : relay_state) ? HIGH : LOW);
+  digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
 
   WiFiManager wifiManager;
   wifiManager.autoConnect("Tank_Automation_Config");
