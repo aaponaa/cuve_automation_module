@@ -896,7 +896,6 @@ void loop() {
 
   // Read DHT sensor
   static unsigned long lastDhtRead = 0;
-  static unsigned long lastDhtRead = 0;
   static int dhtFailCount = 0;
   const int maxDhtFail = 5;
   const int dhtRefreshInterval = 2000;
