@@ -11,6 +11,9 @@
 // OTA
 bool ota_enabled = false;
 
+//MQTT
+bool mqtt_enabled = false;
+
 // DHT22
 #define DHTPIN 33
 #define DHTTYPE DHT22
@@ -533,6 +536,11 @@ void handleSettings() {
               <span id="mqttStatus" style="font-weight:bold;">Status: Checking...</span>
               <button type="submit" style="margin-left:12px;">Connect</button>
             </div>
+          </form>
+          <form action="/disable_mqtt" method="POST" onsubmit="return confirm('Are you sure you want to disable MQTT?');">
+            <button type="submit" style="background-color:#e63946; color:white; padding:10px; border:none; border-radius:4px;">
+              Disable MQTT
+            </button>
           </form>)rawliteral";
 
   html += "<div class=\"setting-section\">";
@@ -651,8 +659,14 @@ void handleSettingsSave() {
 
 void handleTopicsSave() {
   prefs.begin("cuve", false);
+  if (server.hasArg("mqtt_enabled")) {
+    mqtt_enabled = true;
+  } else {
+    mqtt_enabled = false;
+  }
   if (server.hasArg("temp_refresh")) temp_refresh_ms = server.arg("temp_refresh").toInt() * 1000;
   if (server.hasArg("mqtt_publish")) mqtt_publish_ms = server.arg("mqtt_publish").toInt() * 1000;
+  prefs.putBool("mqtt_enabled", mqtt_enabled);
   prefs.putInt("temp_refresh_ms", temp_refresh_ms);
   prefs.putInt("mqtt_publish_ms", mqtt_publish_ms);
   for (int i = 0; i < NUM_TOPICS; ++i) {
@@ -756,14 +770,20 @@ void handleMqttConnect() {
   if (server.hasArg("mqtt_user")) mqtt_username = server.arg("mqtt_user");
   if (server.hasArg("mqtt_pass")) mqtt_password = server.arg("mqtt_pass");
 
-  prefs.begin("cuve", false);
-  prefs.putString("mqtt_host", mqtt_host);
-  prefs.putString("mqtt_user", mqtt_username);
-  prefs.putString("mqtt_pass", mqtt_password);
-  prefs.end();
-
   mqtt.setServer(mqtt_host.c_str(), 1883);
-  mqtt.connect(clientId.c_str(), mqtt_username.c_str(), mqtt_password.c_str());
+  bool success = mqtt.connect(clientId.c_str(), mqtt_username.c_str(), mqtt_password.c_str());
+
+  prefs.begin("cuve", false);
+  if (success) {
+    prefs.putBool("mqtt_enabled", true);
+    mqtt_enabled = prefs.getBool("mqtt_enabled", true); 
+    prefs.putString("mqtt_host", mqtt_host);
+    prefs.putString("mqtt_user", mqtt_username);
+    prefs.putString("mqtt_pass", mqtt_password);
+  } else {
+    prefs.putBool("mqtt_enabled", false);
+  }
+  prefs.end();
 
   // Subscribe to command topic
   String prefix = tank_name;
@@ -781,6 +801,7 @@ void handleMqttStatus() {
 }
 
 void mqttReconnect() {
+  if (!mqtt_enabled) return;
   if (!mqtt.connected() && millis() - lastMqttAttempt > mqtt_publish_ms) {
     lastMqttAttempt = millis();
     String clientId = "ESP32Client-" + tank_name;
@@ -883,7 +904,20 @@ void setupOTA() {
   Serial.println("OTA ready, waiting for update...");
 }
 
+void disableMQTT() {
+  // Save to EEPROM that MQTT is disabled
+  prefs.begin("cuve", false);
+  prefs.putBool("mqtt_enabled", false);
+  prefs.end();
 
+  mqtt_enabled = false;
+
+  // Optional: Stop the MQTT client immediately
+  mqtt.disconnect();
+
+  // Respond to the request
+  server.send(200, "text/plain", "MQTT has been disabled");
+}
 
 void setup() {
   Serial.begin(115200);
@@ -939,6 +973,7 @@ void setup() {
 
   // Load MQTT settings
   prefs.begin("cuve", true);
+  mqtt_enabled = prefs.getBool("mqtt_enabled", false);
   mqtt_host = prefs.getString("mqtt_host", "");
   mqtt_username = prefs.getString("mqtt_user", "");
   mqtt_password = prefs.getString("mqtt_pass", "");
@@ -964,11 +999,12 @@ void setup() {
     if (!ota_enabled) {
       ota_enabled = true;
       Serial.println("Prout");
-      setupOTA();  // 🔄 Initialize OTA only once
+      setupOTA();
     }
+
     server.send(200, "text/plain", "OTA mode enabled. You can now upload new firmware.");
   });
-
+  server.on("/disable_mqtt", HTTP_POST, disableMQTT);
   server.begin();
 }
 
@@ -991,41 +1027,46 @@ void loop() {
     lastTempRead = millis();
   }
 
-  // MQTT handling
-  mqttReconnect();
-  mqtt.loop();
+  if (mqtt_enabled) {
+    // MQTT reconnection logic
+    mqttReconnect();
+    mqtt.loop();
 
-  // MQTT publishing
-  static unsigned long lastMqttPublish = 0;
-  if (millis() - lastMqttPublish > mqtt_publish_ms) {
-    lastMqttPublish = millis();
+    // Periodic MQTT publishing
+    static unsigned long lastMqttPublish = 0;
+    if (millis() - lastMqttPublish > mqtt_publish_ms) {
+      lastMqttPublish = millis();
 
-    float distance = measureDistance();
-    float water_height = max(0.0f, tank_height_cm - distance);
-    float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
-    float volume_liters;
-    if (tank_shape == 1) {  // Cylindrical
-      volume_liters = (PI * pow(tank_diameter_cm / 2, 2) * water_height) / 1000.0;
-    } else {  // Rectangular
-      volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
-    }
+      float distance = measureDistance();
+      float water_height = max(0.0f, tank_height_cm - distance);
+      float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
+      float volume_liters;
 
-    if (mqtt.connected()) {
-      String prefix = tank_name;
-      prefix.replace(" ", "_");
-      for (int i = 0; i < NUM_TOPICS; ++i) {
-        if (topicOptions[i].enabled) {
-          String topic = prefix + "/" + topicOptions[i].topic_suffix;
-          String val;
-          if (strcmp(topicOptions[i].topic_suffix, "water_distance") == 0) val = String(distance, 1);
-          else if (strcmp(topicOptions[i].topic_suffix, "water_height") == 0) val = String(water_height, 1);
-          else if (strcmp(topicOptions[i].topic_suffix, "water_percent") == 0) val = String(percent, 0);
-          else if (strcmp(topicOptions[i].topic_suffix, "water_volume") == 0) val = String(volume_liters, 1);
-          else if (strcmp(topicOptions[i].topic_suffix, "water_temp") == 0) val = String(current_temp, 1);
-          else if (strcmp(topicOptions[i].topic_suffix, "outside_temp") == 0) val = String(outside_temp, 1);
-          else if (strcmp(topicOptions[i].topic_suffix, "outside_humi") == 0) val = String(outside_humi, 1);
-          else if (strcmp(topicOptions[i].topic_suffix, "pump_state") == 0) val = pump_is_on ? "ON" : "OFF";
-          mqtt.publish(topic.c_str(), val.c_str());
+      if (tank_shape == 1) {  // Cylindrical
+        volume_liters = (PI * pow(tank_diameter_cm / 2, 2) * water_height) / 1000.0;
+      } else {  // Rectangular
+        volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
+      }
+
+      if (mqtt.connected()) {
+        String prefix = tank_name;
+        prefix.replace(" ", "_");
+        for (int i = 0; i < NUM_TOPICS; ++i) {
+          if (topicOptions[i].enabled) {
+            String topic = prefix + "/" + topicOptions[i].topic_suffix;
+            String val;
+
+            if (strcmp(topicOptions[i].topic_suffix, "water_distance") == 0) val = String(distance, 1);
+            else if (strcmp(topicOptions[i].topic_suffix, "water_height") == 0) val = String(water_height, 1);
+            else if (strcmp(topicOptions[i].topic_suffix, "water_percent") == 0) val = String(percent, 0);
+            else if (strcmp(topicOptions[i].topic_suffix, "water_volume") == 0) val = String(volume_liters, 1);
+            else if (strcmp(topicOptions[i].topic_suffix, "water_temp") == 0) val = String(current_temp, 1);
+            else if (strcmp(topicOptions[i].topic_suffix, "outside_temp") == 0) val = String(outside_temp, 1);
+            else if (strcmp(topicOptions[i].topic_suffix, "outside_humi") == 0) val = String(outside_humi, 1);
+            else if (strcmp(topicOptions[i].topic_suffix, "pump_state") == 0) val = pump_is_on ? "ON" : "OFF";
+
+            mqtt.publish(topic.c_str(), val.c_str());
+          }
         }
       }
     }
