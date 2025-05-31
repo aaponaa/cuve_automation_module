@@ -896,11 +896,35 @@ void loop() {
 
   // Read DHT sensor
   static unsigned long lastDhtRead = 0;
-  if (millis() - lastDhtRead > temp_refresh_ms) {
-    outside_temp = dht.readTemperature();
-    outside_humi = dht.readHumidity();
+  static unsigned long lastDhtRead = 0;
+  static int dhtFailCount = 0;
+  const int maxDhtFail = 5;
+  const int dhtRefreshInterval = 2000;
+
+  if (millis() - lastDhtRead > dhtRefreshInterval) {
+    
+    float new_temp = dht.readTemperature();
+    float new_humi = dht.readHumidity();
+
+    // Check if readings are valid
+    if (isnan(new_temp) || isnan(new_humi)) {
+      Serial.println("DHT22 reading failed.");
+      dhtFailCount++;
+    } else {
+      outside_temp = new_temp;  // Update only if valid
+      outside_humi = new_humi;
+      dhtFailCount = 0;         // Reset failure count on success
+    }
+
+    if (dhtFailCount >= maxDhtFail) {
+      Serial.println("Restarting DHT22 sensor...");
+      dht.begin();
+      dhtFailCount = 0;
+    }
+
     lastDhtRead = millis();
   }
+
 
   // Read DS18B20 temperature sensor
   static unsigned long lastTempRead = 0;
