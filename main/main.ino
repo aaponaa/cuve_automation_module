@@ -77,6 +77,8 @@ float tank_width_cm = 0;
 float eau_max_cm = 0;
 float cuve_volume_l = 0;
 
+String clientId = "ESP32Client-" + tank_name;
+
 float measureDistance() {
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
@@ -750,7 +752,7 @@ void handleMqttConnect() {
   prefs.end();
 
   mqtt.setServer(mqtt_host.c_str(), 1883);
-  mqtt.connect("esp32cuve", mqtt_username.c_str(), mqtt_password.c_str());
+  mqtt.connect(clientId.c_str(), mqtt_username.c_str(), mqtt_password.c_str());
 
   String json = String("{\"connected\":") + (mqtt.connected() ? "true" : "false") + "}";
   server.send(200, "application/json", json);
@@ -787,6 +789,8 @@ void setup() {
   dht.begin();
 
   pinMode(RELAY_PIN, OUTPUT);
+
+  digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
   digitalWrite(RELAY_PIN, relay_active_low ? HIGH : LOW);
 
   temp_refresh_ms = prefs.getInt("temp_refresh_ms", 4000);
@@ -812,8 +816,6 @@ void setup() {
   }
   prefs.end();
 
-  digitalWrite(RELAY_PIN, relay_active_low ? !relay_state : relay_state);
-
   WiFiManager wifiManager;
   wifiManager.autoConnect("Tank_Automation_Config");
   Serial.println("WiFi connected: ");
@@ -826,7 +828,6 @@ void setup() {
   prefs.end();
 
   mqtt.setServer(mqtt_host.c_str(), 1883);
-
   mqtt.setCallback(mqttCallback);
   String subTopic = tank_name;
   subTopic.replace(" ", "_");
@@ -835,15 +836,15 @@ void setup() {
 
 
   server.on("/", handleRoot);
-  server.on("/calibrate", HTTP_POST, handleCalibrate);
   server.on("/data", handleData);
+  server.on("/factory_reset", handleFactoryReset);
   server.on("/settings", HTTP_GET, handleSettings);
-  server.on("/settings", HTTP_POST, handleSettingsSave);
   server.on("/mqtt_status", HTTP_GET, handleMqttStatus);
+  server.on("/calibrate", HTTP_POST, handleCalibrate);
+  server.on("/settings", HTTP_POST, handleSettingsSave);
   server.on("/mqtt_connect", HTTP_POST, handleMqttConnect);
   server.on("/topics", HTTP_POST, handleTopicsSave);
   server.on("/temp_settings", HTTP_POST, handleTempSettingsSave);
-  server.on("/factory_reset", handleFactoryReset);
   server.on("/relay_toggle", HTTP_POST, handleRelayToggle);
   server.begin();
 }
