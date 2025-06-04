@@ -26,8 +26,8 @@ float outside_humi = 0.0;
 #define RELAY_PIN 27
 
 // Relay state management
-bool pump_is_on = false;        // Logical state: true = pump ON, false = pump OFF
-bool relay_active_low = false;  // true = relay activated by LOW signal (most common)
+bool pump_is_on = false;        
+bool relay_active_low = false;  
 
 // AJ-SRO4M
 #define TRIG_PIN 17
@@ -573,7 +573,12 @@ void handleSettings() {
   html += R"rawliteral(</div>
 
         <div class="setting-section">
-          <div class="section-title">🛠️ Factory Reset</div>
+          <div class="section-title">🛠️ Utilities</div>
+            <form action="/reboot" method="POST" onsubmit="return confirm('Are you sure you want to reboot the device?');">
+              <button type="submit" style="background-color: #f94144; color: white; padding: 10px 20px; border: none; border-radius: 5px;">
+                Reboot Device
+              </button>
+            </form>
             <form method='POST' action='/factory_reset' onsubmit=\"return confirm('Are you sure you want to factory reset? This will erase all settings and WiFi config!');\">
             <button type='submit' style='background:#e63946; color:#fff; margin-top:18px; border-radius:8px;'>Factory Reset</button>
             </form>
@@ -961,7 +966,7 @@ void setup() {
   }
   prefs.end();
 
-  // Set initial relay state
+  // Set initial relay state  
   setRelayPin(pump_is_on);
   Serial.println("Initial pump state: " + String(pump_is_on ? "ON" : "OFF"));
 
@@ -1005,6 +1010,11 @@ void setup() {
     server.send(200, "text/plain", "OTA mode enabled. You can now upload new firmware.");
   });
   server.on("/disable_mqtt", HTTP_POST, disableMQTT);
+  server.on("/reboot", HTTP_POST, []() {
+    server.send(200, "text/html", "<html><body><h1>Rebooting...</h1></body></html>");
+    delay(500); 
+    ESP.restart();
+  });
   server.begin();
 }
 
@@ -1021,7 +1031,7 @@ void loop() {
   if (millis() - lastTempRead > temp_refresh_ms) {
     sensors.requestTemperatures();
     float temp = sensors.getTempCByIndex(0);
-    if (temp != DEVICE_DISCONNECTED_C && temp > -50 && temp < 100) {
+    if (temp != DEVICE_DISCONNECTED_C && temp > 0 && temp < 40) {
       current_temp = temp;
     }
     lastTempRead = millis();
