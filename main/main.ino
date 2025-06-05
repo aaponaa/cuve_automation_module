@@ -26,8 +26,16 @@ float outside_humi = 0.0;
 #define RELAY_PIN 27
 
 // Relay state management
-bool pump_is_on = false;        
-bool relay_active_low = false;  
+bool pump_is_on = false;
+bool relay_active_low = false;
+
+// A02YYUW
+float last_distance = -1.0;  // Store last valid measured distance
+
+#define USE_A02YYUW true  // ou false pour AJ-SR04M
+#define SENSOR_RX_PIN 16  // Connect TX from sensor to this ESP32 RX pin
+
+HardwareSerial mySerial(2);  // Use Serial2
 
 // AJ-SRO4M
 #define TRIG_PIN 17
@@ -94,14 +102,38 @@ void setRelayPin(bool pumpOn) {
 }
 
 float measureDistance() {
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-  long duration = pulseIn(ECHO_PIN, HIGH);
-  return duration * 0.0343 / 2.0;
+  if (USE_A02YYUW) {
+    return last_distance;
+  } else {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+    long duration = pulseIn(ECHO_PIN, HIGH);
+    return duration * 0.0343 / 2.0;
+  }
 }
+
+float readA02YYUW() {
+  while (mySerial.available() >= 4) {
+    if (mySerial.peek() == 0xFF) {
+      byte buffer[4];
+      mySerial.readBytes(buffer, 4);
+
+      if (buffer[0] == 0xFF) {
+        int distance = (buffer[1] << 8) | buffer[2];
+        if (distance >= 30 && distance <= 7500) {
+          return distance / 10.0;  // mm to cm
+        }
+      }
+    } else {
+      mySerial.read();
+    }
+  }
+  return -1.0;
+}
+
 
 // Web HTML
 void handleRoot() {
@@ -781,7 +813,7 @@ void handleMqttConnect() {
   prefs.begin("cuve", false);
   if (success) {
     prefs.putBool("mqtt_enabled", true);
-    mqtt_enabled = prefs.getBool("mqtt_enabled", true); 
+    mqtt_enabled = prefs.getBool("mqtt_enabled", true);
     prefs.putString("mqtt_host", mqtt_host);
     prefs.putString("mqtt_user", mqtt_username);
     prefs.putString("mqtt_pass", mqtt_password);
@@ -944,9 +976,12 @@ void setup() {
   // Initialize DS18B20 temperature sensor
   sensors.begin();
 
-  // Initialize ultrasonic sensor pins
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
+  if (USE_A02YYUW) {
+    mySerial.begin(9600, SERIAL_8N1, SENSOR_RX_PIN, -1);  // -1 car on n'utilise pas TX
+  } else {
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+  }
 
   // Load settings from preferences
   prefs.begin("cuve", true);
@@ -966,7 +1001,7 @@ void setup() {
   }
   prefs.end();
 
-  // Set initial relay state  
+  // Set initial relay state
   setRelayPin(pump_is_on);
   Serial.println("Initial pump state: " + String(pump_is_on ? "ON" : "OFF"));
 
@@ -1012,7 +1047,7 @@ void setup() {
   server.on("/disable_mqtt", HTTP_POST, disableMQTT);
   server.on("/reboot", HTTP_POST, []() {
     server.send(200, "text/html", "<html><body><h1>Rebooting...</h1></body></html>");
-    delay(500); 
+    delay(500);
     ESP.restart();
   });
   server.begin();
@@ -1025,6 +1060,14 @@ void loop() {
     // your existing loop code (MQTT, sensor readings, etc.)
     server.handleClient();
   }
+
+  if (USE_A02YYUW) {
+    float distance = readA02YYUW();
+    if (distance > 0) {
+      last_distance = distance;
+    }
+  }
+
 
   // Read DS18B20 temperature sensor
   static unsigned long lastTempRead = 0;
