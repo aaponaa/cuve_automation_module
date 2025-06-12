@@ -44,10 +44,7 @@ void readSensorsLoop() {
   }
 
   if (USE_A02YYUW) {
-    float distance = readA02YYUW();
-    if (distance > 0) {
-      last_distance = distance;
-    }
+   last_distance = readA02YYUW();
   }
 }
 

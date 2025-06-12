@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Water Level Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --primary: #0077b6;
+      --primary-dark: #023e8a;
+      --accent: #00b4d8;
+      --bg: #e0f7fa;
+      --text-dark: #003049;
+      --text-light: #ffffff;
+      --box-bg: rgba(255, 255, 255, 0.8);
+      --border-radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg) 0%, #a7c8ff 100%);
+      color: var(--text-dark);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: var(--box-bg);
+      backdrop-filter: blur(12px);
+      border-radius: var(--border-radius);
+      box-shadow: 0 6px 32px rgba(50, 130, 184, 0.25);
+      padding: 2em;
+      max-width: 460px;
+      width: 95%;
+      display: flex;
+      flex-direction: column;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      text-align: center;
+      color: var(--primary);
+      margin-bottom: 1.5em;
+      font-weight: 700;
+      font-size: 1.4rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5em;
+      border-radius: var(--border-radius);
+      overflow: hidden;
+      box-shadow: 0 3px 10px rgba(0, 180, 216, 0.05);
+    }
+
+    th {
+      background-color: var(--primary);
+      color: var(--text-light);
+      text-align: left;
+      padding: 12px;
+      font-size: 1rem;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      font-weight: 500;
+      color: #004066;
+    }
+
+    tr:hover {
+      background-color: rgba(0, 180, 216, 0.05);
+    }
+
+    a {
+      text-align: center;
+      text-decoration: none;
+      color: var(--primary);
+      font-weight: 600;
+      display: block;
+      margin-bottom: 1em;
+      transition: color 0.2s;
+    }
+
+    a:hover {
+      color: var(--primary-dark);
+    }
+
+    form {
+      display: flex;
+      justify-content: center;
+    }
+
+    button {
+      padding: 12px 22px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #pumpBtn {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    #pumpBtn.on {
+      background-color: #28a745;
+    }
+
+    button[type="submit"] {
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      color: var(--text-light);
+    }
+
+    button:hover {
+      transform: scale(1.03);
+      filter: brightness(1.05);
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 1.2em;
+      }
+
+      td, th {
+        font-size: 0.95rem;
+        padding: 10px;
+      }
+
+      h2 {
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+  <script>
+    async function fetchData() {
+      const res = await fetch('/data');
+      const data = await res.json();
+      document.getElementById('temp').innerText = data.temp ?? '--';
+      document.getElementById('outside_temp').innerText = (data.outside_temp > -50) ? data.outside_temp + ' °C' : '--';
+      document.getElementById('outside_humi').innerText = (data.outside_humi >= 0) ? data.outside_humi + ' %' : '--';
+      document.getElementById('dist').innerText = data.distance + ' cm';
+      document.getElementById('water').innerText = data.water_height + ' cm';
+      document.getElementById('percent').innerText = data.percent + ' %';
+      document.getElementById('liters').innerText = data.volume_liters + ' L';
+      document.getElementById('tankname').innerText = data.tank_name || '--';
+      document.getElementById('version').innerText = data.fw_version || '--';
+
+      const pumpCell = document.getElementById('pumpstate');
+      const pumpBtn = document.getElementById('pumpBtn');
+      if (pumpCell && pumpBtn) {
+        const isOn = data.pump_is_on;
+        pumpCell.innerText = isOn ? "ON" : "OFF";
+        pumpBtn.classList.toggle("on", isOn);
+      }
+    }
+
+    function togglePump() {
+      fetch('/relay_toggle', { method: 'POST' }).then(fetchData);
+    }
+
+    setInterval(fetchData, 2000);
+    window.onload = fetchData;
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const form = document.getElementById('calibForm');
+      form.onsubmit = function (ev) {
+        if (!confirm("Are you sure you want to calibrate the maximum water height?\nThis will overwrite the current calibration.")) {
+          ev.preventDefault();
+        }
+      };
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h2>💧 <span id="tankname">--</span> Monitor <span id="version">--</span></h2>
+    <table>
+      <tr><th>Parameter</th><th>Value</th></tr>
+      <tr><td>Temperature</td><td id="temp">--</td></tr>
+      <tr><td>Outside Temperature</td><td id="outside_temp">--</td></tr>
+      <tr><td>Outside Humidity</td><td id="outside_humi">--</td></tr>
+      <tr><td>Distance (sensor → water)</td><td id="dist">--</td></tr>
+      <tr><td>Water Height</td><td id="water">--</td></tr>
+      <tr><td>Fill Percentage</td><td id="percent">--</td></tr>
+      <tr><td>Estimated Volume</td><td id="liters">--</td></tr>
+      <tr><td>Pump State</td>
+        <td>
+          <button id="pumpBtn" onclick="togglePump()">
+            <span id="pumpstate">--</span>
+          </button>
+        </td>
+      </tr>
+    </table>
+    <a href="/settings">⚙️ Settings →</a>
+    <form id="calibForm" method="POST" action="/calibrate">
+      <button type="submit">Calibrate Max Water Height</button>
+    </form>
+  </div>
+</body>
+</html>
