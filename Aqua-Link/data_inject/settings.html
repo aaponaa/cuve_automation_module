@@ -304,6 +304,27 @@
 
     document.getElementById('tank_shape').onchange = updateTankFields;
     setInterval(updateMqttStatus, 5000);
+
+    fetch("/topics_config")
+      .then(r => r.json())
+      .then(data => {
+        const table = document.getElementById("topics_table");
+        data.forEach(item => {
+          const row = document.createElement("tr");
+          const tdName = document.createElement("td");
+          tdName.textContent = item.topic;
+          const tdInput = document.createElement("td");
+          tdInput.style.textAlign = "right";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.name = "enable_" + item.suffix;
+          checkbox.checked = item.enabled;
+          tdInput.appendChild(checkbox);
+          row.appendChild(tdName);
+          row.appendChild(tdInput);
+          table.appendChild(row);
+        });
+      });
   </script>
 </body>
 </html>
