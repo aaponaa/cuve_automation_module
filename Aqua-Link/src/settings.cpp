@@ -24,9 +24,16 @@ void initTempSettings() {
   prefs.end();
 }
 
-void saveSettings() {
-  prefs.begin("cuve", false);
+void handleSaveSettings() {
+  if (server.hasArg("tank_name")) tank_name = server.arg("tank_name");
+  if (server.hasArg("tank_height")) tank_height_cm = server.arg("tank_height").toFloat();
+  if (server.hasArg("tank_diameter")) tank_diameter_cm = server.arg("tank_diameter").toFloat();
+  if (server.hasArg("tank_length")) tank_length_cm = server.arg("tank_length").toFloat();
+  if (server.hasArg("tank_width")) tank_width_cm = server.arg("tank_width").toFloat();
+  if (server.hasArg("eau_max")) eau_max_cm = server.arg("eau_max").toFloat();
+  if (server.hasArg("tank_shape")) tank_shape = server.arg("tank_shape").toInt();
 
+  prefs.begin("cuve", false);
   prefs.putString("tank_name", tank_name);
   prefs.putFloat("tank_height", tank_height_cm);
   prefs.putFloat("tank_diam", tank_diameter_cm);
@@ -34,8 +41,9 @@ void saveSettings() {
   prefs.putFloat("tank_width", tank_width_cm);
   prefs.putFloat("eau_max", eau_max_cm);
   prefs.putBool("tank_shape", tank_shape);
-
   prefs.end();
+  server.sendHeader("Location", "/settings");
+  server.send(303);
 }
 
 void saveTempSettings() {

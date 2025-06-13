@@ -7,7 +7,7 @@
 void initSettings();
 void initTempSettings();
 void saveTempSettings();
-void saveSettings();
+void handleSaveSettings();
 void handleFactoryReset();
 
 #endif

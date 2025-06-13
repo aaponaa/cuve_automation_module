@@ -126,7 +126,7 @@ void initWebServer() {
   server.on("/settings", HTTP_GET, handleSettings);
   server.on("/mqtt_status", HTTP_GET, handleMqttStatus);
   server.on("/calibrate", HTTP_POST, handleCalibrate);
-  server.on("/save_settings", HTTP_POST, saveSettings);
+  server.on("/save_settings", HTTP_POST, handleSaveSettings);
   server.on("/mqtt_connect", HTTP_POST, handleMqttConnect);
   server.on("/topics", HTTP_POST, handleTopicsSave);
   server.on("/temp_settings", HTTP_POST, saveTempSettings);
