@@ -1,4 +1,4 @@
-# 💧 Water Tank Monitor with ESP32
+# 💧 Water Tank Monitor with ESP32 : RootCtrl
 
 An all-in-one ESP32-based water tank monitoring system that measures:
 

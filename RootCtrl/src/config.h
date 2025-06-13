@@ -12,7 +12,7 @@
 
 // ========== GENERAL SETTINGS ==========
 
-#define FW_VERSION "0.1.0"
+#define FW_VERSION "v0.2.0"
 extern String fw_version;
 
 #define USE_A02YYUW false  // Set to false to use SR04M
