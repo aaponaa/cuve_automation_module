@@ -258,6 +258,13 @@
   </div>
 
   <script>
+
+     async function fetchData() {
+      const res = await fetch('/data');
+      const data = await res.json();
+      document.getElementById('version').innerText = data.fw_version || '--';
+    }
+
     async function fillSettingsFromData() {
       const res = await fetch('/datasettings');
       const data = await res.json();
@@ -363,12 +370,17 @@
         });
       });
 
-          const currentVersion = document.getElementById("current-version").textContent;
+    const currentVersion = document.getElementById("version").textContent;
 
-    fetch("https://raw.githubusercontent.com/<user>/<repo>/main/version.txt")
-      .then(response => response.text())
-      .then(latest => {
-        const latestVersion = latest.trim();
+    const repo = "aaponaa/cuve_automation_module";
+    const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
+
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        const latestVersion = data.tag_name;
+        const asset = data.assets.find(a => a.name.endsWith(".bin"));
+
         document.getElementById("latest-version").textContent = latestVersion;
 
         const statusEl = document.getElementById("update-status");
@@ -377,19 +389,27 @@
           statusEl.className = "status up-to-date";
         } else {
           statusEl.textContent = "New version available ⚠️";
+          statusEl.dataset.downloadUrl = asset.browser_download_url; // pour le bouton
         }
       })
       .catch(err => {
+        console.error(err);
         document.getElementById("latest-version").textContent = "Error";
         document.getElementById("update-status").textContent = "Unable to check for update";
       });
 
     document.getElementById("updateNowBtn").addEventListener("click", async () => {
-      const binUrl = "https://raw.githubusercontent.com/<user>/<repo>/main/firmware.bin"; // 🔁 à adapter
+      const binUrl = document.getElementById("update-status").dataset.downloadUrl;
+      if (!binUrl) {
+        alert("No update available or download link not found.");
+        return;
+      }
+
       try {
         const response = await fetch(binUrl);
         if (!response.ok) throw new Error("Download failed");
         const blob = await response.blob();
+
         const formData = new FormData();
         formData.append("update", new File([blob], "firmware.bin", { type: "application/octet-stream" }));
 
@@ -408,12 +428,6 @@
         alert("Download or upload failed.");
       }
     });
-
-    async function fetchData() {
-      const res = await fetch('/data');
-      const data = await res.json();
-      document.getElementById('version').innerText = data.fw_version || '--';
-    }
 
 
   </script>
