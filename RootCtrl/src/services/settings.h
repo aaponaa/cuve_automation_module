@@ -6,6 +6,7 @@
 
 void initSettings();
 void initTempSettings();
+void initTopicSettings();
 void saveTempSettings();
 void handleSaveSettings();
 void handleFactoryReset();

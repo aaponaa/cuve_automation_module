@@ -18,9 +18,22 @@ void initSettings() {
 void initTempSettings() {
   prefs.begin("cuve", true);
 
-  temp_refresh_ms = prefs.getUInt("temp_refresh", 2000);
   dht_refresh_ms = prefs.getUInt("dht_refresh", 10000);
 
+  prefs.end();
+}
+
+void initTopicSettings() {
+  prefs.begin("cuve", true);
+  
+  // Charger les intervalles
+  mqtt_publish_ms = prefs.getInt("mqtt_publish_ms", 5000);
+  
+  // Charger l'état de chaque topic
+  for (int i = 0; i < NUM_TOPICS; ++i) {
+    topicOptions[i].enabled = prefs.getBool(topicOptions[i].topic_suffix, true);
+  }
+  
   prefs.end();
 }
 

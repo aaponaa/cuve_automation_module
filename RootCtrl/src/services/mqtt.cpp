@@ -157,27 +157,25 @@ void disableMQTT() {
 }
 
 void handleTopicsSave() {
+
   prefs.begin("cuve", false);
-  if (server.hasArg("mqtt_enabled")) {
-    mqtt_enabled = true;
-  } else {
-    mqtt_enabled = false;
-  }
+  
   if (server.hasArg("temp_refresh")) temp_refresh_ms = server.arg("temp_refresh").toInt() * 1000;
   if (server.hasArg("mqtt_publish")) mqtt_publish_ms = server.arg("mqtt_publish").toInt() * 1000;
-  prefs.putBool("mqtt_enabled", mqtt_enabled);
-  prefs.putInt("temp_refresh_ms", temp_refresh_ms);
-  prefs.putInt("mqtt_publish_ms", mqtt_publish_ms);
+  
+  Serial.println("Topics status:");
   for (int i = 0; i < NUM_TOPICS; ++i) {
     String field = String("enable_") + topicOptions[i].topic_suffix;
-    if (server.hasArg(field)) {
-      topicOptions[i].enabled = true;
-    } else {
-      topicOptions[i].enabled = false;
-    }
+    bool was_enabled = topicOptions[i].enabled;
+    topicOptions[i].enabled = server.hasArg(field);
     prefs.putBool(topicOptions[i].topic_suffix, topicOptions[i].enabled);
+    
+    Serial.println("  " + String(topicOptions[i].topic_suffix) + ": " + 
+                   String(was_enabled) + " -> " + String(topicOptions[i].enabled));
   }
+
   prefs.end();
+
   server.sendHeader("Location", "/settings");
   server.send(303);
 }
