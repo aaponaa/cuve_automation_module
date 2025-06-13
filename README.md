@@ -132,7 +132,9 @@ Feel free to fork, use, and improve!
 
 ---
 
-## 📝 License
+## Licence
 
-MIT License. See [`LICENSE`](./LICENSE) file.
+Ce projet est sous licence **CC BY-NC 4.0** — utilisation commerciale interdite.  
+Détails : [LICENSE](./LICENSE)
 
+![Licence: CC BY-NC 4.0](https://img.shields.io/badge/Licence-CC--BY--NC%204.0-lightgrey.svg)
