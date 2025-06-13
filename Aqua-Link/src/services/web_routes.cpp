@@ -4,7 +4,6 @@
 #include "settings.h"
 #include "../sensors/sensors.h"
 #include "../sensors/relay.h"
-#include "ota.h"
 #include <Preferences.h>
 #include <Arduino.h>
 #include <Update.h>
@@ -107,7 +106,6 @@ void initWebServer() {
   server.on("/topics", HTTP_POST, handleTopicsSave);
   server.on("/temp_settings", HTTP_POST, saveTempSettings);
   server.on("/relay_toggle", HTTP_POST, toggleRelay);
-  server.on("/ota", []() {if (!isOTAEnabled()) {setupOTA();} server.send(200, "text/plain", "OTA mode enabled. You can now upload new firmware.");});
   server.on("/disable_mqtt", HTTP_POST, disableMQTT);
   server.on("/reboot", HTTP_POST, []() {
     server.send(200, "text/html", 
