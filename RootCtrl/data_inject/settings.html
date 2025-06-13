@@ -240,18 +240,15 @@
       <div class="version-info">
         Current version: <span id="version">--</span><br>
         Latest version: <span id="latest-version">Checking...</span><br>
-        <span id="update-status" class="status"></span>
+        <a href="https://github.com/aaponaa/cuve_automation_module/releases"><span id="update-status" class="status"></span></a>
       </div>
 
       <form id="manualUploadForm" method="POST" action="/upload" enctype="multipart/form-data">
         <label style="margin-top: 1em;">Manual Upload (.bin):</label>
         <input type="file" name="update" required>
-        <input type="submit" value="Upload">
+        <button type="submit" >Upload</button>
       </form>
 
-      <button id="updateNowBtn" style="background: linear-gradient(90deg, #00b894, #00cec9); color: white; width: 100%; margin-top: 1em;">
-        🔄 Update Now (Download & Install)
-      </button>
     </div>
 
     <a href="/">← Back to Dashboard</a>
@@ -376,58 +373,30 @@
     const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
 
     fetch(apiUrl)
-      .then(response => response.json())
+      .then(res => res.json())
       .then(data => {
         const latestVersion = data.tag_name;
         const asset = data.assets.find(a => a.name.endsWith(".bin"));
+        
+        if (!asset) throw new Error("Firmware .bin not found in release");
 
+        const downloadUrl = asset.browser_download_url;
         document.getElementById("latest-version").textContent = latestVersion;
+        const updateStatus = document.getElementById("update-status");
 
-        const statusEl = document.getElementById("update-status");
         if (currentVersion === latestVersion) {
-          statusEl.textContent = "Up to date ✅";
-          statusEl.className = "status up-to-date";
+          updateStatus.textContent = "Up to date ✅";
+          updateStatus.className = "status up-to-date";
         } else {
-          statusEl.textContent = "New version available ⚠️";
-          statusEl.dataset.downloadUrl = asset.browser_download_url; // pour le bouton
+          updateStatus.textContent = "New version available ⚠️";
+          updateStatus.dataset.downloadUrl = downloadUrl; // Stocker l'URL pour le bouton
         }
       })
       .catch(err => {
-        console.error(err);
+        console.error("Error fetching release info", err);
         document.getElementById("latest-version").textContent = "Error";
-        document.getElementById("update-status").textContent = "Unable to check for update";
+        document.getElementById("update-status").textContent = "Unable to check";
       });
-
-    document.getElementById("updateNowBtn").addEventListener("click", async () => {
-      const binUrl = document.getElementById("update-status").dataset.downloadUrl;
-      if (!binUrl) {
-        alert("No update available or download link not found.");
-        return;
-      }
-
-      try {
-        const response = await fetch(binUrl);
-        if (!response.ok) throw new Error("Download failed");
-        const blob = await response.blob();
-
-        const formData = new FormData();
-        formData.append("update", new File([blob], "firmware.bin", { type: "application/octet-stream" }));
-
-        const uploadResp = await fetch("/upload", {
-          method: "POST",
-          body: formData
-        });
-
-        if (uploadResp.ok) {
-          alert("Firmware uploaded! Rebooting...");
-        } else {
-          alert("Upload failed!");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Download or upload failed.");
-      }
-    });
 
 
   </script>
