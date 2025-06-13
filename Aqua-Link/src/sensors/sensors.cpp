@@ -73,8 +73,6 @@ void readDS18B20() {
   current_temp = ds18b20.getTempCByIndex(0);
 }
 
-
-
 float readSR04M() {
   float sum = 0;
   const int samples = 5;
@@ -110,6 +108,15 @@ float readA02YYUW() {
   }
   return -1.0;
 }
+
+float calculateVolumeLiters(float height_cm) {
+  if (tank_shape == 1) {  // Cylinder
+    return (PI * pow(tank_diameter_cm / 2, 2) * height_cm) / 1000.0;
+  } else {
+    return (tank_length_cm * tank_width_cm * height_cm) / 1000.0;
+  }
+}
+
 
 float measureDistance() {
   if (USE_A02YYUW) {

@@ -1,12 +1,12 @@
 #include <Arduino.h>
 #include "config.h"
-#include "sensors.h"
-#include "relay.h"
-#include "mqtt.h"
-#include "web_routes.h"
-#include "ota.h"
-#include "settings.h"
-#include "wifi_handler.h"
+#include "sensors/sensors.h"
+#include "sensors/relay.h"
+#include "services/mqtt.h"
+#include "services/web_routes.h"
+#include "services/ota.h"
+#include "services/settings.h"
+#include "services/wifi_handler.h"
 
 void setup() {
   Serial.begin(115200);

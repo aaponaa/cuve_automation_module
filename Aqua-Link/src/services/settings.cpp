@@ -1,5 +1,5 @@
 #include "settings.h"
-#include "config.h"
+#include "../config.h"
 
 void initSettings() {
   prefs.begin("cuve", true);

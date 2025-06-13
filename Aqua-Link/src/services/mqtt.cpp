@@ -1,7 +1,7 @@
 #include "mqtt.h"
-#include "relay.h"
-#include "config.h" 
-#include "sensors.h"
+#include "../sensors/relay.h"
+#include "../config.h" 
+#include "../sensors/sensors.h"
 #include <Preferences.h>
 
 extern PubSubClient mqtt;
@@ -53,13 +53,7 @@ if (mqtt_enabled) {
       float distance = measureDistance();
       float water_height = max(0.0f, tank_height_cm - distance);
       float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
-      float volume_liters;
-
-      if (tank_shape == 1) {  // Cylindrical
-        volume_liters = (PI * pow(tank_diameter_cm / 2, 2) * water_height) / 1000.0;
-      } else {  // Rectangular
-        volume_liters = (tank_length_cm * tank_width_cm * water_height) / 1000.0;
-      }
+      float volume_liters = calculateVolumeLiters();
 
       if (mqtt.connected()) {
         String prefix = tank_name;

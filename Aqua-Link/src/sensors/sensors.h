@@ -3,7 +3,10 @@
 
 #include "config.h"
 
+// Ultrasonic distance measurement (A02YYUW or SR04M, depending on flag)
 float measureDistance();
+
+float calculateVolumeLiters();
 
 // Initialization of sensors (DHT, DS18B20, A02YYUW or SR04M)
 void initSensors();
@@ -11,8 +14,6 @@ void initSensors();
 // Main sensor polling function (called regularly in loop)
 void readSensorsLoop();
 
-// Ultrasonic distance measurement (A02YYUW or SR04M, depending on flag)
-float readWaterDistance();
 
 // Low-level ultrasonic sensor functions
 float readSR04M();
