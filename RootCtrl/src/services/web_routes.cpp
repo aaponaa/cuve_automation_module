@@ -1,7 +1,6 @@
 #include "webserver.h"
-#include "config.h"
-#include "mqtt.h"
-#include "settings.h"
+#include "../services/mqtt.h"
+#include "../services/settings.h"
 #include "../sensors/sensors.h"
 #include "../sensors/relay.h"
 #include <Preferences.h>
