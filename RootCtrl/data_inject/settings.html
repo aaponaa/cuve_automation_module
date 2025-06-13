@@ -133,6 +133,10 @@
       font-size: 0.95rem;
     }
 
+    .update-link{
+      text-align: left;
+    }
+
     a:hover {
       color: #023e8a;
       text-decoration: underline;
@@ -240,7 +244,7 @@
       <div class="version-info">
         Current version: <span id="version">--</span><br>
         Latest version: <span id="latest-version">Checking...</span><br>
-        <a href="https://github.com/aaponaa/cuve_automation_module/releases"><span id="update-status" class="status"></span></a>
+        <a class="update-link" href="https://github.com/aaponaa/cuve_automation_module/releases"><span id="update-status" class="status"></span></a>
       </div>
 
       <form id="manualUploadForm" method="POST" action="/upload" enctype="multipart/form-data">
@@ -255,12 +259,6 @@
   </div>
 
   <script>
-
-     async function fetchData() {
-      const res = await fetch('/data');
-      const data = await res.json();
-      document.getElementById('version').innerText = data.fw_version || '--';
-    }
 
     async function fillSettingsFromData() {
       const res = await fetch('/datasettings');
@@ -340,7 +338,7 @@
       fillSettingsFromData();
       updateMqttStatus();
       updateTankFields();
-      fetchData();
+      fetchVersionAndCompare();
     };
 
     document.getElementById('tank_shape').onchange = updateTankFields;
@@ -367,37 +365,39 @@
         });
       });
 
-    const currentVersion = document.getElementById("version").textContent;
+  async function fetchVersionAndCompare() {
+    try {
+      const res = await fetch('/data');
+      const data = await res.json();
+      const currentVersion = data.fw_version || '--';
+      document.getElementById('version').innerText = currentVersion;
 
-    const repo = "aaponaa/cuve_automation_module";
-    const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
+      const repo = "aaponaa/cuve_automation_module";
+      const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
 
-    fetch(apiUrl)
-      .then(res => res.json())
-      .then(data => {
-        const latestVersion = data.tag_name;
-        const asset = data.assets.find(a => a.name.endsWith(".bin"));
-        
-        if (!asset) throw new Error("Firmware .bin not found in release");
+      const ghRes = await fetch(apiUrl);
+      const ghData = await ghRes.json();
+      const latestVersion = ghData.tag_name;
+      const asset = ghData.assets.find(a => a.name.endsWith(".bin"));
 
-        const downloadUrl = asset.browser_download_url;
-        document.getElementById("latest-version").textContent = latestVersion;
-        const updateStatus = document.getElementById("update-status");
+      if (!asset) throw new Error("Firmware .bin not found in release");
 
-        if (currentVersion === latestVersion) {
-          updateStatus.textContent = "Up to date ✅";
-          updateStatus.className = "status up-to-date";
-        } else {
-          updateStatus.textContent = "New version available ⚠️";
-          updateStatus.dataset.downloadUrl = downloadUrl; // Stocker l'URL pour le bouton
-        }
-      })
-      .catch(err => {
-        console.error("Error fetching release info", err);
-        document.getElementById("latest-version").textContent = "Error";
-        document.getElementById("update-status").textContent = "Unable to check";
-      });
+      document.getElementById("latest-version").textContent = latestVersion;
+      const updateStatus = document.getElementById("update-status");
 
+      if (currentVersion === latestVersion) {
+        updateStatus.textContent = "Up to date ✅";
+        updateStatus.className = "status up-to-date";
+      } else {
+        updateStatus.textContent = "New version available ⚠️";
+        updateStatus.dataset.downloadUrl = asset.browser_download_url;
+      }
+    } catch (err) {
+      console.error("Error fetching version info", err);
+      document.getElementById("latest-version").textContent = "Error";
+      document.getElementById("update-status").textContent = "Unable to check";
+    }
+  }
 
   </script>
 </body>
