@@ -53,7 +53,7 @@ if (mqtt_enabled) {
       float distance = measureDistance();
       float water_height = max(0.0f, tank_height_cm - distance);
       float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
-      float volume_liters = calculateVolumeLiters();
+      float volume_liters = calculateVolumeLiters(water_height);
 
       if (mqtt.connected()) {
         String prefix = tank_name;

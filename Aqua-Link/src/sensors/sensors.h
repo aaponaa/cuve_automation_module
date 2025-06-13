@@ -6,7 +6,7 @@
 // Ultrasonic distance measurement (A02YYUW or SR04M, depending on flag)
 float measureDistance();
 
-float calculateVolumeLiters();
+float calculateVolumeLiters(float height_cm);
 
 // Initialization of sensors (DHT, DS18B20, A02YYUW or SR04M)
 void initSensors();

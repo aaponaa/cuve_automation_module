@@ -20,7 +20,7 @@ static void handleData() {
   float distance = measureDistance();
   float water_height = max(0.0f, tank_height_cm - distance);
   float percent = (eau_max_cm > 0) ? (water_height / eau_max_cm * 100) : 0;
-  float volume_liters = calculateVolumeLiters();
+  float volume_liters = calculateVolumeLiters(water_height);
 
   String json = "{";
   json += "\"tank_name\":\"" + tank_name + "\",";
@@ -92,22 +92,6 @@ static void handleSettings() {
   server.send(200, "text/html", html);
 }
 
-static void handleFirmwarePage() {
-  String html = R"rawliteral(
-    <!DOCTYPE html>
-    <html>
-    <head><meta charset="UTF-8"><title>Firmware Upload</title></head>
-    <body>
-      <h2>Upload new firmware</h2>
-      <form method="POST" action="/upload" enctype="multipart/form-data">
-        <input type="file" name="update">
-        <input type="submit" value="Update">
-      </form>
-    </body>
-    </html>
-  )rawliteral";
-  server.send(200, "text/html", html);
-}
 
 void initWebServer() {
   // Web server setup
@@ -132,7 +116,6 @@ void initWebServer() {
     delay(500);
     ESP.restart();
   });
-  server.on("/firmware", HTTP_GET, handleFirmwarePage);
   server.on("/upload", HTTP_POST, []() {
     server.send(200, "text/html", 
       "<html><head><meta http-equiv='refresh' content='2; url=/'></head>"

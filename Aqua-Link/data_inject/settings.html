@@ -192,7 +192,7 @@
 
     <div class="setting-section">
       <div class="section-title">📡 MQTT Settings</div>
-      <form id="mqttForm" method="POST" action="/mqtt_connect">
+      <form id="mqttToggleForm">
         <label>MQTT Server:</label>
         <input type="text" name="mqtt_host" id="mqtt_host_input" required>
 
@@ -202,13 +202,10 @@
         <label>MQTT Password:</label>
         <input type="password" name="mqtt_pass" id="mqtt_pass_input" autocomplete="off">
 
-        <span id="mqttStatus" style="font-weight: bold; margin-top: 1em; display: block;">Status: Checking...</span>
-        <button type="submit">Connect</button>
-      </form>
 
-      <form method="POST" action="/disable_mqtt" onsubmit="return confirm('Disable MQTT?');">
-        <button type="submit" class="danger-btn">Disable MQTT</button>
+        <button type="submit" id="mqttToggleBtn">...</button>
       </form>
+      <span id="mqttStatus" style="font-weight: bold; margin-top: 1em; display: block;">Status: Checking...</span>
     </div>
 
     <div class="setting-section">
@@ -235,6 +232,26 @@
       <form method="POST" action="/factory_reset" onsubmit="return confirm('This will erase all settings and WiFi config! Proceed?');">
         <button type="submit" class="danger-btn" style="margin-top: 10px;">Factory Reset</button>
       </form>
+    </div>
+
+    <div class="setting-section">
+      <div class="section-title">🧬 Firmware Update</div>
+
+      <div class="version-info">
+        Current version: <span id="version">--</span><br>
+        Latest version: <span id="latest-version">Checking...</span><br>
+        <span id="update-status" class="status"></span>
+      </div>
+
+      <form id="manualUploadForm" method="POST" action="/upload" enctype="multipart/form-data">
+        <label style="margin-top: 1em;">Manual Upload (.bin):</label>
+        <input type="file" name="update" required>
+        <input type="submit" value="Upload">
+      </form>
+
+      <button id="updateNowBtn" style="background: linear-gradient(90deg, #00b894, #00cec9); color: white; width: 100%; margin-top: 1em;">
+        🔄 Update Now (Download & Install)
+      </button>
     </div>
 
     <a href="/">← Back to Dashboard</a>
@@ -272,35 +289,54 @@
       document.getElementById('rect_fields').style.display = (shape == '0') ? 'block' : 'none';
       document.getElementById('cyl_fields').style.display = (shape == '1') ? 'block' : 'none';
     }
-
+    
     function updateMqttStatus() {
       fetch('/mqtt_status')
         .then(r => r.json())
         .then(j => {
           let el = document.getElementById('mqttStatus');
+          let btn = document.getElementById('mqttToggleBtn');
           if (j.connected) {
             el.textContent = "Status: Connected ✅";
             el.style.color = "#28a745";
+            btn.textContent = "Disconnect";
+            btn.dataset.action = "disconnect";
           } else {
             el.textContent = "Status: Disconnected ❌";
             el.style.color = "#ff0033";
+            btn.textContent = "Connect";
+            btn.dataset.action = "connect";
           }
         });
     }
 
-    document.getElementById("mqttForm").onsubmit = function(ev) {
+    document.getElementById("mqttToggleForm").onsubmit = function(ev) {
       ev.preventDefault();
-      let formData = new FormData(ev.target);
-      fetch('/mqtt_connect', {
-        method: 'POST',
-        body: formData
-      }).then(r => r.json()).then(updateMqttStatus);
+      const btn = document.getElementById("mqttToggleBtn");
+      const action = btn.dataset.action;
+      if (action === "connect") {
+        const formData = new FormData();
+        formData.append("mqtt_host", document.getElementById("mqtt_host_input").value);
+        formData.append("mqtt_user", document.getElementById("mqtt_user_input").value);
+        formData.append("mqtt_pass", document.getElementById("mqtt_pass_input").value);
+        fetch('/mqtt_connect', {
+          method: 'POST',
+          body: formData
+        }).then(r => r.json()).then(updateMqttStatus);
+      } else if (action === "disconnect") {
+        if (confirm("Disable MQTT?")) {
+          fetch('/disable_mqtt', { method: 'POST' })
+            .then(() => updateMqttStatus());
+        }
+      }
     };
+
 
     window.onload = () => {
       fillSettingsFromData();
       updateMqttStatus();
       updateTankFields();
+      fetchData();
     };
 
     document.getElementById('tank_shape').onchange = updateTankFields;
@@ -326,6 +362,60 @@
           table.appendChild(row);
         });
       });
+
+          const currentVersion = document.getElementById("current-version").textContent;
+
+    fetch("https://raw.githubusercontent.com/<user>/<repo>/main/version.txt")
+      .then(response => response.text())
+      .then(latest => {
+        const latestVersion = latest.trim();
+        document.getElementById("latest-version").textContent = latestVersion;
+
+        const statusEl = document.getElementById("update-status");
+        if (currentVersion === latestVersion) {
+          statusEl.textContent = "Up to date ✅";
+          statusEl.className = "status up-to-date";
+        } else {
+          statusEl.textContent = "New version available ⚠️";
+        }
+      })
+      .catch(err => {
+        document.getElementById("latest-version").textContent = "Error";
+        document.getElementById("update-status").textContent = "Unable to check for update";
+      });
+
+    document.getElementById("updateNowBtn").addEventListener("click", async () => {
+      const binUrl = "https://raw.githubusercontent.com/<user>/<repo>/main/firmware.bin"; // 🔁 à adapter
+      try {
+        const response = await fetch(binUrl);
+        if (!response.ok) throw new Error("Download failed");
+        const blob = await response.blob();
+        const formData = new FormData();
+        formData.append("update", new File([blob], "firmware.bin", { type: "application/octet-stream" }));
+
+        const uploadResp = await fetch("/upload", {
+          method: "POST",
+          body: formData
+        });
+
+        if (uploadResp.ok) {
+          alert("Firmware uploaded! Rebooting...");
+        } else {
+          alert("Upload failed!");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Download or upload failed.");
+      }
+    });
+
+    async function fetchData() {
+      const res = await fetch('/data');
+      const data = await res.json();
+      document.getElementById('version').innerText = data.fw_version || '--';
+    }
+
+
   </script>
 </body>
 </html>
