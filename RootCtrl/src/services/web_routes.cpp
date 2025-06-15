@@ -102,7 +102,6 @@ void initWebServer() {
   server.on("/calibrate", HTTP_POST, handleCalibrate);
   server.on("/save_settings", HTTP_POST, handleSaveSettings);
   server.on("/mqtt_connect", HTTP_POST, handleMqttConnect);
-  server.on("/topics", HTTP_POST, handleTopicsSave);
   server.on("/temp_settings", HTTP_POST, saveTempSettings);
   server.on("/relay_toggle", HTTP_POST, toggleRelay);
   server.on("/disable_mqtt", HTTP_POST, disableMQTT);
@@ -120,17 +119,6 @@ void initWebServer() {
     delay(500); 
     ESP.restart();
   }, handleFirmwareUpload);
-  server.on("/topics_config", HTTP_GET, []() {
-    String json = "[";
-    for (int i = 0; i < NUM_TOPICS; ++i) {
-      if (i > 0) json += ",";
-      json += "{\"topic\":\"" + tank_name + "/" + topicOptions[i].topic_suffix + "\",";
-      json += "\"suffix\":\"" + String(topicOptions[i].topic_suffix) + "\",";
-      json += "\"enabled\":" + String(topicOptions[i].enabled ? "true" : "false") + "}";
-    }
-    json += "]";
-    server.send(200, "application/json", json);
-  });
   server.begin();
   Serial.println("✅ Web server started");
 }

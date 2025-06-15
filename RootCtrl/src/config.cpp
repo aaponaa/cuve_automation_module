@@ -37,16 +37,3 @@ String mqtt_host = "192.168.1.100";      // ou ton IP/nom de broker
 String mqtt_username = "user";          // ou vide
 String mqtt_password = "pass";          // ou vide
 
-// MQTT topics
-TopicOption topicOptions[] = {
-  {"Distance (sensor → water)", "water_distance", true},
-  {"Water Height",              "water_height",   true},
-  {"Fill Percentage",           "water_percent",  true},
-  {"Estimated Volume",          "water_volume",   true},
-  {"Temperature (Water)",       "water_temp",     true},
-  {"Outside Temperature",       "outside_temp",   true},
-  {"Outside Humidity",          "outside_humi",   true},
-  {"Pump State",                "pump_state",     true}
-};
-
-const int NUM_TOPICS = sizeof(topicOptions) / sizeof(TopicOption);

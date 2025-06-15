@@ -1,5 +1,7 @@
 #include "settings.h"
 #include "../config.h"
+#include "../services/mqtt.h"  
+
 
 void initSettings() {
   prefs.begin("cuve", true);
@@ -23,21 +25,10 @@ void initTempSettings() {
   prefs.end();
 }
 
-void initTopicSettings() {
-  prefs.begin("cuve", true);
-  
-  // Charger les intervalles
-  mqtt_publish_ms = prefs.getInt("mqtt_publish_ms", 5000);
-  
-  // Charger l'état de chaque topic
-  for (int i = 0; i < NUM_TOPICS; ++i) {
-    topicOptions[i].enabled = prefs.getBool(topicOptions[i].topic_suffix, true);
-  }
-  
-  prefs.end();
-}
-
 void handleSaveSettings() {
+  String old_name = tank_name;
+
+  // Met à jour les variables globales depuis le formulaire
   if (server.hasArg("tank_name")) tank_name = server.arg("tank_name");
   if (server.hasArg("tank_height")) tank_height_cm = server.arg("tank_height").toFloat();
   if (server.hasArg("tank_diameter")) tank_diameter_cm = server.arg("tank_diameter").toFloat();
@@ -46,6 +37,7 @@ void handleSaveSettings() {
   if (server.hasArg("eau_max")) eau_max_cm = server.arg("eau_max").toFloat();
   if (server.hasArg("tank_shape")) tank_shape = server.arg("tank_shape").toInt();
 
+  // Sauvegarde en NVS
   prefs.begin("cuve", false);
   prefs.putString("tank_name", tank_name);
   prefs.putFloat("tank_height", tank_height_cm);
@@ -55,6 +47,14 @@ void handleSaveSettings() {
   prefs.putFloat("eau_max", eau_max_cm);
   prefs.putBool("tank_shape", tank_shape);
   prefs.end();
+
+  // Si le nom de cuve a changé, met à jour MQTT Discovery
+  if (old_name != tank_name) {
+    removeDiscovery(old_name);          // Supprime anciens topics
+    publishAllDiscovery(tank_name);     // Publie avec le nouveau nom
+  }
+
+  // Redirection vers la page settings
   server.sendHeader("Location", "/settings");
   server.send(303);
 }

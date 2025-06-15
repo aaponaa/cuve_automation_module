@@ -72,15 +72,4 @@ extern String mqtt_username;
 extern String mqtt_password;
 extern bool mqtt_enabled;
 
-// ========== STRUCTS ==========
-
-struct TopicOption {
-  const char* label;
-  const char* topic_suffix;
-  bool enabled;
-};
-
-extern TopicOption topicOptions[];
-extern const int NUM_TOPICS;
-
 #endif

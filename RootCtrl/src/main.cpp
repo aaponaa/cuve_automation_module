@@ -10,8 +10,6 @@
 void setup() {
   Serial.begin(115200);
   initWifi();
-  initSettings();
-  initTopicSettings();  // ← Ajouter cette ligne
   initRelay();
   initSensors();
   initWebServer();
