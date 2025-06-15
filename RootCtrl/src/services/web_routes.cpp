@@ -79,7 +79,6 @@ static void handleReboot() {
   ESP.restart();
 }
 
-// Web HTML
 static void handleRoot() {
   String html = DASHBOARD_HTML;
   server.send(200, "text/html", html);
@@ -90,21 +89,19 @@ static void handleSettings() {
   server.send(200, "text/html", html);
 }
 
-
 void initWebServer() {
-  // Web server setup
-  server.on("/", handleRoot);
-  server.on("/data", handleData);
+  server.on("/",HTTP_GET ,handleRoot);
+  server.on("/settings", HTTP_GET, handleSettings);
+  server.on("/data",HTTP_GET, handleData);
   server.on("/datasettings", HTTP_GET, handleDataSettings);
   server.on("/factory_reset", handleFactoryReset);
-  server.on("/settings", HTTP_GET, handleSettings);
   server.on("/mqtt_status", HTTP_GET, handleMqttStatus);
   server.on("/calibrate", HTTP_POST, handleCalibrate);
-  server.on("/save_settings", HTTP_POST, handleSaveSettings);
+  server.on("/save_settings", HTTP_POST, saveSettings);
   server.on("/mqtt_connect", HTTP_POST, handleMqttConnect);
-  server.on("/temp_settings", HTTP_POST, saveTempSettings);
   server.on("/relay_toggle", HTTP_POST, toggleRelay);
   server.on("/disable_mqtt", HTTP_POST, disableMQTT);
+  server.on("/period", HTTP_POST, savePeriodSettings);
   server.on("/reboot", HTTP_POST, []() {
     server.send(200, "text/html", 
       "<html><head><meta http-equiv='refresh' content='2; url=/'></head>"

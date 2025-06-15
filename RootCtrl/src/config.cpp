@@ -28,7 +28,6 @@ bool pump_is_on = false;
 // Intervals
 unsigned long temp_refresh_ms = 2000;
 unsigned long mqtt_publish_ms = 5000;
-unsigned long dht_refresh_ms = 10000;   
 
 // MQTT
 bool mqtt_enabled = true;

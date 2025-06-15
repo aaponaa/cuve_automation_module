@@ -17,15 +17,8 @@ void initSettings() {
   prefs.end();
 }
 
-void initTempSettings() {
-  prefs.begin("cuve", true);
 
-  dht_refresh_ms = prefs.getUInt("dht_refresh", 10000);
-
-  prefs.end();
-}
-
-void handleSaveSettings() {
+void saveSettings() {
   String old_name = tank_name;
 
   // Met à jour les variables globales depuis le formulaire
@@ -59,14 +52,21 @@ void handleSaveSettings() {
   server.send(303);
 }
 
-void saveTempSettings() {
-  prefs.begin("cuve", false);
+void savePeriodSettings() {
+  if (server.hasArg("mqtt_publish") && server.hasArg("temp_refresh")) {
+    unsigned int mqtt_publish_sec = server.arg("mqtt_publish").toInt();
+    unsigned int temp_refresh_sec = server.arg("temp_refresh").toInt();
 
-  prefs.putUInt("temp_refresh", temp_refresh_ms);
-  prefs.putUInt("dht_refresh", dht_refresh_ms);
+    unsigned int mqtt_publish_ms = mqtt_publish_sec * 1000;
+    unsigned int temp_refresh_ms = temp_refresh_sec * 1000;
 
-  prefs.end();
+    prefs.begin("cuve", false);
+    prefs.putUInt("mqtt_publish", mqtt_publish_ms);
+    prefs.putUInt("temp_refresh", temp_refresh_ms);
+    prefs.end();
+  }
 }
+
 
 void handleFactoryReset() {
   // Clear NVS partition "cuve"

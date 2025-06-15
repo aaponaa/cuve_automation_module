@@ -64,7 +64,6 @@ extern bool pump_is_on;
 // Refresh intervals
 extern unsigned long temp_refresh_ms;
 extern unsigned long mqtt_publish_ms;
-extern unsigned long dht_refresh_ms;
 
 // MQTT config
 extern String mqtt_host;

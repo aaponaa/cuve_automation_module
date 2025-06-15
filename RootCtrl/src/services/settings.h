@@ -5,10 +5,8 @@
 #include <Preferences.h>
 
 void initSettings();
-void initTempSettings();
-void initTopicSettings();
-void saveTempSettings();
-void handleSaveSettings();
+void savePeriodSettings();
+void saveSettings();
 void handleFactoryReset();
 
 #endif
