@@ -15,7 +15,5 @@ void setRelay(bool on);
 // Return current relay state
 bool isRelayOn();
 
-// Handle relay logic loop (if needed for automation)
-void handleRelayLogic();
 
 #endif

@@ -73,9 +73,19 @@ void handleFirmwareUpload() {
   }
 }
 
-static void handleReboot() {
-  server.send(200, "text/plain", "Rebooting...");
-  delay(1000);
+void handleRebootWithHtml() {
+  server.send(200, "text/html",
+    "<html><head><meta http-equiv='refresh' content='2; url=/'></head>"
+    "<body><h1>Rebooting...</h1></body></html>");
+  delay(500);
+  ESP.restart();
+}
+
+void handleUploadSuccessAndReboot() {
+  server.send(200, "text/html",
+    "<html><head><meta http-equiv='refresh' content='2; url=/'></head>"
+    "<body><h1>Update complete. Rebooting...</h1></body></html>");
+  delay(500);
   ESP.restart();
 }
 
@@ -102,20 +112,8 @@ void initWebServer() {
   server.on("/relay_toggle", HTTP_POST, toggleRelay);
   server.on("/disable_mqtt", HTTP_POST, disableMQTT);
   server.on("/period", HTTP_POST, savePeriodSettings);
-  server.on("/reboot", HTTP_POST, []() {
-    server.send(200, "text/html", 
-      "<html><head><meta http-equiv='refresh' content='2; url=/'></head>"
-      "<body><h1>Rebooting...</h1></body></html>");
-    delay(500);
-    ESP.restart();
-  });
-  server.on("/upload", HTTP_POST, []() {
-    server.send(200, "text/html", 
-      "<html><head><meta http-equiv='refresh' content='2; url=/'></head>"
-      "<body><h1>Update complete. Rebooting...</h1></body></html>");
-    delay(500); 
-    ESP.restart();
-  }, handleFirmwareUpload);
+  server.on("/reboot", HTTP_POST, handleRebootWithHtml);
+  server.on("/upload", HTTP_POST, handleUploadSuccessAndReboot, handleFirmwareUpload);
   server.begin();
   Serial.println("✅ Web server started");
 }

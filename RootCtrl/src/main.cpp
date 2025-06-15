@@ -19,7 +19,6 @@ void setup() {
 
 void loop() {
   server.handleClient();
-  handleRelayLogic();
   readSensorsLoop();
   handleMqttLoop();
 }

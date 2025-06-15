@@ -22,7 +22,6 @@ void initSettings() {
 void saveSettings() {
   String old_name = tank_name;
 
-  // Met à jour les variables globales depuis le formulaire
   if (server.hasArg("tank_name")) tank_name = server.arg("tank_name");
   if (server.hasArg("tank_height")) tank_height_cm = server.arg("tank_height").toFloat();
   if (server.hasArg("tank_diameter")) tank_diameter_cm = server.arg("tank_diameter").toFloat();
@@ -31,7 +30,6 @@ void saveSettings() {
   if (server.hasArg("eau_max")) eau_max_cm = server.arg("eau_max").toFloat();
   if (server.hasArg("tank_shape")) tank_shape = server.arg("tank_shape").toInt();
 
-  // Sauvegarde en NVS
   prefs.begin("cuve", false);
   prefs.putString("tank_name", tank_name);
   prefs.putFloat("tank_height", tank_height_cm);
@@ -42,13 +40,11 @@ void saveSettings() {
   prefs.putBool("tank_shape", tank_shape);
   prefs.end();
 
-  // Si le nom de cuve a changé, met à jour MQTT Discovery
   if (old_name != tank_name) {
-    removeDiscovery(old_name);          // Supprime anciens topics
-    publishAllDiscovery(tank_name);     // Publie avec le nouveau nom
+    removeDiscovery(old_name);         
+    publishAllDiscovery(tank_name);    
   }
 
-  // Redirection vers la page settings
   server.sendHeader("Location", "/settings");
   server.send(303);
 }
@@ -73,12 +69,10 @@ void savePeriodSettings() {
 
 
 void handleFactoryReset() {
-  // Clear NVS partition "cuve"
   prefs.begin("cuve", false);
   prefs.clear();
   prefs.end();
 
-  // Clear WiFi config
   WiFi.disconnect(true, true);
 
   server.send(200, "text/html", "<html><body><h2>Device has been reset.<br>Restarting...</h2></body></html>");

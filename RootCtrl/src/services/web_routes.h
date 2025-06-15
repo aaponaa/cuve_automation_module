@@ -7,6 +7,7 @@ void initWebServer();
 void handleSettings();
 void handleMqttConnect();
 void disableMQTT();
-void handleReboot();
+void handleRebootWithHtml();
+void handleUploadSuccessAndReboot();
 
 #endif

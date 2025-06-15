@@ -20,7 +20,3 @@ bool isRelayOn() {
   return pump_is_on;
 }
 
-// Reserved for future logic (e.g. timed control)
-void handleRelayLogic() {
-  // Placeholder for automation or safety logic
-}
