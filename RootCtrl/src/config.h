@@ -71,4 +71,4 @@ extern String mqtt_username;
 extern String mqtt_password;
 extern bool mqtt_enabled;
 
-#endif
+#endif // CONFIG_H

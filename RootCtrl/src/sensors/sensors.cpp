@@ -53,7 +53,6 @@ void readDHT() {
   float h = dht.readHumidity();
 
   if (isnan(t) || isnan(h)) {
-    //Serial.println("⚠️  DHT22 reading failed.");
     dhtFailCount++;
   } else {
     outside_temp = t;
@@ -62,7 +61,6 @@ void readDHT() {
   }
 
   if (dhtFailCount >= maxDhtFail) {
-    //Serial.println("🔄 Restarting DHT22...");
     dht.begin();
     dhtFailCount = 0;
   }
