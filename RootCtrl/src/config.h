@@ -35,7 +35,7 @@ extern String fw_version;
 
 // Relay
 #define RELAY_PIN 27
-#define RELAY_ACTIVE_LOW true
+#define RELAY_ACTIVE_LOW false
 
 // ========== GLOBALS ==========
 

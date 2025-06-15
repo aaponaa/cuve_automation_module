@@ -6,17 +6,18 @@
 void initSettings() {
   prefs.begin("cuve", true);
 
-  tank_name = prefs.getString("tank_name", "PimentosTank");
+  tank_name = prefs.getString("tank_name", "WaterTank");
   tank_height_cm = prefs.getFloat("tank_height", 100.0);
   tank_diameter_cm = prefs.getFloat("tank_diam", 60.0);
   tank_length_cm = prefs.getFloat("tank_len", 80.0);
   tank_width_cm = prefs.getFloat("tank_width", 60.0);
   eau_max_cm = prefs.getFloat("eau_max", 100.0);
   tank_shape = prefs.getBool("tank_shape", false);
+  mqtt_publish_ms = prefs.getUInt("mqtt_publish", 5000);
+  temp_refresh_ms = prefs.getUInt("temp_refresh", 2000);
 
   prefs.end();
 }
-
 
 void saveSettings() {
   String old_name = tank_name;
@@ -57,14 +58,17 @@ void savePeriodSettings() {
     unsigned int mqtt_publish_sec = server.arg("mqtt_publish").toInt();
     unsigned int temp_refresh_sec = server.arg("temp_refresh").toInt();
 
-    unsigned int mqtt_publish_ms = mqtt_publish_sec * 1000;
-    unsigned int temp_refresh_ms = temp_refresh_sec * 1000;
+    mqtt_publish_ms = mqtt_publish_sec * 1000;
+    temp_refresh_ms = temp_refresh_sec * 1000;
 
     prefs.begin("cuve", false);
     prefs.putUInt("mqtt_publish", mqtt_publish_ms);
     prefs.putUInt("temp_refresh", temp_refresh_ms);
     prefs.end();
   }
+
+  server.sendHeader("Location", "/settings");
+  server.send(303);
 }
 
 
