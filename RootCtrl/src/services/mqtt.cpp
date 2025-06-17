@@ -35,6 +35,7 @@ void publishDiscoverySensor(const String& tank_name, const char* suffix, const c
   String jsonPayload = "{";
   jsonPayload += "\"name\":\"" + String(name) + "\",";
   jsonPayload += "\"state_topic\":\"" + stateTopic + "\",";
+  jsonPayload += "\"expire_after\":60,";
   jsonPayload += "\"unit_of_measurement\":\"" + String(unit) + "\",";
   
   if (device_class) {
@@ -70,6 +71,7 @@ void publishDiscoveryPumpSwitch(const String& tank_name) {
   String jsonPayload = "{";
   jsonPayload += "\"name\":\"Pump\",";
   jsonPayload += "\"state_topic\":\"" + stateTopic + "\",";
+  jsonPayload += "\"expire_after\":60,";
   jsonPayload += "\"command_topic\":\"" + commandTopic + "\",";
   jsonPayload += "\"payload_on\":\"on\",";
   jsonPayload += "\"payload_off\":\"off\",";
@@ -98,6 +100,7 @@ void publishDiscoveryMqttStatus(const String& tank_name) {
   String jsonPayload = "{";
   jsonPayload += "\"name\":\"MQTT Status\",";
   jsonPayload += "\"state_topic\":\"" + stateTopic + "\",";
+  jsonPayload += "\"expire_after\":60,";
   jsonPayload += "\"payload_on\":\"online\",";
   jsonPayload += "\"payload_off\":\"offline\",";
   jsonPayload += "\"device_class\":\"connectivity\",";
@@ -202,7 +205,6 @@ void handleMqttLoop() {
 
         String prefix = tank_name; prefix.replace(" ", "_");
 
-        mqtt.publish((prefix + "/water_level").c_str(), String(distance, 1).c_str(), true);
         mqtt.publish((prefix + "/water_distance").c_str(), String(distance, 1).c_str(), true); // ajouté
 
         mqtt.publish((prefix + "/water_height").c_str(), String(water_height, 1).c_str(), true);
