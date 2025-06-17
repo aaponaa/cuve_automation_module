@@ -2,7 +2,6 @@
 
 void initWifi(){
   WiFiManager wifiManager;
-  wifiManager.autoConnect("Tank_Automation_Config");
-  Serial.println("WiFi connected: ");
+  wifiManager.autoConnect("RootCtrl_Wifi");
   Serial.println(WiFi.localIP());
 }

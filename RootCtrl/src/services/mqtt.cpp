@@ -179,7 +179,7 @@ void mqttReconnect() {
 
         String prefix = tank_name; prefix.replace(" ", "_");
         mqtt.subscribe((prefix + "/pump_cmd").c_str());
-        Serial.println("Subscribed to: " + prefix + "/pump_cmd");
+        Serial.println("✅ Subscribed to: " + prefix + "/pump_cmd");
 
         // Publish MQTT status
         String mqtt_status_topic = prefix + "/mqtt_status";
