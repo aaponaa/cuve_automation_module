@@ -2,218 +2,935 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Water Level Monitor</title>
+  <title>Water Level Monitor Pro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    :root {
-      --primary: #0077b6;
-      --primary-dark: #023e8a;
-      --accent: #00b4d8;
-      --bg: #e0f7fa;
-      --text-dark: #003049;
-      --text-light: #ffffff;
-      --box-bg: rgba(255, 255, 255, 0.8);
-      --border-radius: 16px;
-    }
-
     * {
+      margin: 0;
+      padding: 0;
       box-sizing: border-box;
     }
 
+    :root {
+      --primary: #0ea5e9;
+      --primary-dark: #0284c7;
+      --primary-light: #38bdf8;
+      --secondary: #06b6d4;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-dark: #0f172a;
+      --bg-light: #f8fafc;
+      --surface-dark: #1e293b;
+      --surface-light: #ffffff;
+      --text-dark: #f1f5f9;
+      --text-light: #0f172a;
+      --text-muted-dark: #94a3b8;
+      --text-muted-light: #64748b;
+      --border-dark: #334155;
+      --border-light: #e2e8f0;
+      --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="light"] {
+      --bg: var(--bg-light);
+      --surface: var(--surface-light);
+      --text: var(--text-light);
+      --text-muted: var(--text-muted-light);
+      --border: var(--border-light);
+    }
+
+    [data-theme="dark"] {
+      --bg: var(--bg-dark);
+      --surface: var(--surface-dark);
+      --text: var(--text-dark);
+      --text-muted: var(--text-muted-dark);
+      --border: var(--border-dark);
+    }
+
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, var(--bg) 0%, #a7c8ff 100%);
-      color: var(--text-dark);
-      margin: 0;
-      padding: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      transition: var(--transition);
       min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .background-pattern {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle at 25% 25%, var(--primary) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, var(--secondary) 0%, transparent 50%);
+      opacity: 0.03;
+      pointer-events: none;
     }
 
     .container {
-      background: var(--box-bg);
-      backdrop-filter: blur(12px);
-      border-radius: var(--border-radius);
-      box-shadow: 0 6px 32px rgba(50, 130, 184, 0.25);
-      padding: 2em;
-      max-width: 460px;
-      width: 95%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3rem;
+      animation: slideDown 0.6s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+      box-shadow: var(--shadow);
+    }
+
+    .logo-text h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .logo-text p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: -0.25rem;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .theme-toggle {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+      font-size: 20px;
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.05);
+      box-shadow: var(--shadow);
+    }
+
+    .settings-btn {
+      padding: 0.75rem 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: var(--text);
+      transition: var(--transition);
+      font-weight: 500;
+    }
+
+    .settings-btn:hover {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    /* Main Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: var(--transition);
+      animation: fadeInUp 0.6s ease-out forwards;
+      opacity: 0;
+    }
+
+    .card:nth-child(1) { animation-delay: 0.1s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.3s; }
+    .card:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--primary);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .card-icon.water { background: rgba(14, 165, 233, 0.1); color: var(--primary); }
+    .card-icon.temp { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+    .card-icon.pump { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+    .card-icon.sensor { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+
+    .card-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .card-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* Water Level Visualization */
+    .water-tank-card {
+      grid-column: span 2;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tank-visualization {
+      display: flex;
+      gap: 3rem;
+      align-items: center;
+      margin-top: 2rem;
+      justify-content: center; /* Centrage du contenu */
+    }
+
+    .tank-container {
+      flex: 1;
+      max-width: 300px;
+      height: 250px;
+      position: relative;
+      margin: 0 auto; /* Centrage par défaut */
+    }
+
+    .tank {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      border: 3px solid var(--border);
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1); /* Ajout d'une ombre interne pour plus de profondeur */
+    }
+
+    .tank-percentage {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      z-index: 10;
+      display: none; /* Caché par défaut, visible sur mobile */
+    }
+
+    .water-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, var(--primary-light), var(--primary));
+      transition: height 1s ease-out;
+      border-radius: 0 0 17px 17px;
+      box-shadow: inset 0 -10px 20px rgba(0, 0, 0, 0.1); /* Ombre pour donner de la profondeur */
+      min-height: 3px; /* Hauteur minimale pour toujours voir un peu d'eau */
+    }
+
+    .water-fill::before {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: -50%;
+      right: -50%;
+      height: 20px;
+      background: inherit;
+      border-radius: 50%;
+      animation: wave 3s linear infinite;
+      opacity: calc(0.8 * var(--wave-opacity, 1)); /* Transparence contrôlée */
+    }
+    
+    /* Deuxième vague pour plus de réalisme */
+    .water-fill::after {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: -50%;
+      right: -50%;
+      height: 20px;
+      background: inherit;
+      border-radius: 45%;
+      animation: wave 4s linear infinite reverse;
+      opacity: calc(0.6 * var(--wave-opacity, 1));
+      animation-delay: -1s;
+    }
+
+    @keyframes wave {
+      0% { transform: translateX(0) translateY(0); }
+      25% { transform: translateX(12.5%) translateY(-4px); }
+      50% { transform: translateX(25%) translateY(-3px); }
+      75% { transform: translateX(37.5%) translateY(-4px); }
+      100% { transform: translateX(50%) translateY(0); }
+    }
+
+    .tank-info {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      animation: fadeIn 0.6s ease-out;
+      gap: 1.5rem;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    h2 {
-      text-align: center;
-      color: var(--primary);
-      margin-bottom: 1.5em;
-      font-weight: 700;
-      font-size: 1.4rem;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1.5em;
-      border-radius: var(--border-radius);
-      overflow: hidden;
-      box-shadow: 0 3px 10px rgba(0, 180, 216, 0.05);
-    }
-
-    th {
-      background-color: var(--primary);
-      color: var(--text-light);
-      text-align: left;
-      padding: 12px;
-      font-size: 1rem;
-    }
-
-    td {
-      padding: 12px;
-      border-bottom: 1px solid #ddd;
-      font-weight: 500;
-      color: #004066;
-    }
-
-    tr:hover {
-      background-color: rgba(0, 180, 216, 0.05);
-    }
-
-    a {
-      text-align: center;
-      text-decoration: none;
-      color: var(--primary);
-      font-weight: 600;
-      display: block;
-      margin-bottom: 1em;
-      transition: color 0.2s;
-    }
-
-    a:hover {
-      color: var(--primary-dark);
-    }
-
-    form {
+    .info-row {
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      background: var(--bg);
+      border-radius: 10px;
+      transition: var(--transition);
     }
 
-    button {
-      padding: 12px 22px;
-      border-radius: 8px;
-      border: none;
+    .info-row:hover {
+      background: var(--border);
+    }
+
+    .info-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .info-value {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* Environmental Data */
+    .env-data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .env-item {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 12px;
+      text-align: center;
+      transition: var(--transition);
+    }
+
+    .env-item:hover {
+      background: var(--border);
+    }
+
+    .env-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .env-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* Pump Control */
+    .pump-control {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .pump-status {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 12px;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--danger);
+      transition: var(--transition);
+    }
+
+    .status-indicator.active {
+      background: var(--success);
+      box-shadow: 0 0 20px var(--success);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .pump-toggle {
+      padding: 1rem 2rem;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 12px;
       font-size: 1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.1s, background 0.2s;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      transition: var(--transition);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
 
-    #pumpBtn {
-      background-color: #6c757d;
+    .pump-toggle:hover {
+      transform: scale(1.05);
+      box-shadow: var(--shadow);
+    }
+
+    .pump-toggle.active {
+      background: var(--success);
       color: white;
+      border-color: var(--success);
     }
 
-    #pumpBtn.on {
-      background-color: #28a745;
+    /* Calibration Section */
+    .calibration-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-top: 2rem;
+      animation: fadeInUp 0.6s ease-out 0.5s forwards;
+      opacity: 0;
     }
 
-    button[type="submit"] {
-      background: linear-gradient(90deg, var(--primary), var(--accent));
-      color: var(--text-light);
+    .calibration-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
     }
 
-    button:hover {
-      transform: scale(1.03);
-      filter: brightness(1.05);
+    .calibration-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
     }
 
-    @media (max-width: 600px) {
+    .calibration-form {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .calibrate-btn {
+      padding: 0.75rem 2rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .calibrate-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      filter: brightness(1.1);
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
       .container {
-        padding: 1.2em;
+        padding: 1rem;
       }
 
-      td, th {
-        font-size: 0.95rem;
-        padding: 10px;
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
       }
 
-      h2 {
-        font-size: 1.2rem;
+      .water-tank-card {
+        grid-column: span 1;
+        padding: 1.25rem; /* Réduction du padding sur mobile */
       }
+
+      .tank-visualization {
+        flex-direction: column;
+        gap: 1.5rem; /* Réduction de l'espace */
+        margin-top: 1rem;
+      }
+
+      .tank-container {
+        max-width: 100%;
+        width: 100%;
+        height: 300px; /* Augmentation de la hauteur sur mobile */
+      }
+
+      .tank {
+        width: 80%; /* Largeur à 80% du conteneur */
+        margin: 0 auto; /* Centrage horizontal */
+        border-width: 4px; /* Bordure plus épaisse sur mobile */
+      }
+
+      .tank-percentage {
+        display: block; /* Affichage du pourcentage sur mobile */
+      }
+
+      .tank-info {
+        width: 100%;
+      }
+
+      .info-row {
+        padding: 0.625rem; /* Réduction du padding */
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      /* Ajustement des cartes sur mobile */
+      .card {
+        padding: 1.25rem;
+      }
+
+      .card-value {
+        font-size: 1.75rem;
+      }
+    }
+
+    /* Très petits écrans (mobile portrait) */
+    @media (max-width: 480px) {
+      .tank-container {
+        height: 350px; /* Encore plus grand sur très petit écran */
+      }
+
+      .tank {
+        width: 85%; /* Largeur optimisée */
+        max-width: 280px; /* Largeur maximale sur petit écran */
+      }
+
+      .tank-percentage {
+        font-size: 3rem; /* Plus grand sur petit écran */
+      }
+
+      .info-row {
+        font-size: 0.875rem;
+      }
+
+      .card-value {
+        font-size: 1.5rem;
+      }
+      
+      /* Masquer les infos redondantes sur très petit écran */
+      .info-row:first-child {
+        display: none; /* Masquer le pourcentage qui est déjà dans le tank */
+      }
+    }
+
+    /* Loading State */
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Error State */
+    .error {
+      color: var(--danger);
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Success Animation */
+    .success-pulse {
+      animation: successPulse 0.5s ease-out;
+    }
+
+    @keyframes successPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
   </style>
-  <script>
-    async function fetchData() {
-      const res = await fetch('/data');
-      const data = await res.json();
-      document.getElementById('temp').innerText = data.temp ?? '--';
-      document.getElementById('outside_temp').innerText = (data.outside_temp > -50) ? data.outside_temp + ' °C' : '--';
-      document.getElementById('outside_humi').innerText = (data.outside_humi >= 0) ? data.outside_humi + ' %' : '--';
-      document.getElementById('dist').innerText = data.distance + ' cm';
-      document.getElementById('water').innerText = data.water_height + ' cm';
-      document.getElementById('percent').innerText = data.percent + ' %';
-      document.getElementById('liters').innerText = data.volume_liters + ' L';
-      document.getElementById('tankname').innerText = data.tank_name || '--';
-      document.getElementById('version').innerText = data.fw_version || '--';
+</head>
+<body data-theme="dark">
+  <div class="background-pattern"></div>
+  
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">💧</div>
+        <div class="logo-text">
+          <h1><span id="tankname">Tank</span> Monitor</h1>
+          <p>Version <span id="version">--</span></p>
+        </div>
+      </div>
+      <div class="header-controls">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+          <span id="themeIcon">🌙</span>
+        </button>
+        <a href="/settings" class="settings-btn">
+          <span>⚙️</span>
+          <span>Settings</span>
+        </a>
+      </div>
+    </header>
 
-      const pumpCell = document.getElementById('pumpstate');
-      const pumpBtn = document.getElementById('pumpBtn');
-      if (pumpCell && pumpBtn) {
-        const isOn = data.pump_is_on;
-        pumpCell.innerText = isOn ? "ON" : "OFF";
-        pumpBtn.classList.toggle("on", isOn);
+    <!-- Main Dashboard -->
+    <main class="dashboard-grid">
+      <!-- Water Level Card -->
+      <div class="card water-tank-card">
+        <div class="card-header">
+          <h2 class="card-title">Water Tank</h2>
+          <div class="card-icon water">💧</div>
+        </div>
+        <div class="tank-visualization">
+          <div class="tank-container">
+            <div class="tank">
+              <div class="water-fill" id="waterFill" style="height: 0%"></div>
+              <div class="tank-percentage" id="tankPercentage">0%</div>
+            </div>
+          </div>
+          <div class="tank-info">
+            <div class="info-row">
+              <span class="info-label">Fill Percentage</span>
+              <span class="info-value"><span id="percent">--</span>%</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Water Height</span>
+              <span class="info-value"><span id="water">--</span> cm</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Volume</span>
+              <span class="info-value"><span id="liters">--</span> L</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Sensor Distance</span>
+              <span class="info-value"><span id="dist">--</span> cm</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Temperature</span>
+              <span class="info-value"><span id="temp">--</span>°C</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Environmental Data Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Environment</h2>
+          <div class="card-icon sensor">🌤️</div>
+        </div>
+        <div class="env-data-grid">
+          <div class="env-item">
+            <div class="env-label">Outside Temp</div>
+            <div class="env-value" id="outside_temp">--</div>
+          </div>
+          <div class="env-item">
+            <div class="env-label">Humidity</div>
+            <div class="env-value" id="outside_humi">--</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pump Control Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Pump Control</h2>
+          <div class="card-icon pump">⚙️</div>
+        </div>
+        <div class="pump-control">
+          <div class="pump-status">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <span>Pump is <strong id="pumpstate">--</strong></span>
+          </div>
+          <button class="pump-toggle" id="pumpBtn" onclick="togglePump()">
+            <span id="pumpBtnIcon">▶️</span>
+            <span id="pumpBtnText">Turn ON</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Calibration Section -->
+    <section class="calibration-section">
+      <div class="calibration-header">
+        <h3 class="calibration-title">System Calibration</h3>
+      </div>
+      <form class="calibration-form" id="calibForm" method="POST" action="/calibrate">
+        <p style="color: var(--text-muted); flex: 1;">Set the current water level as the maximum capacity for accurate measurements.</p>
+        <button type="submit" class="calibrate-btn">
+          <span>📏</span>
+          <span>Calibrate Max Level</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>IoT Water Monitoring System • Real-time Updates Every 2 Seconds</p>
+    </footer>
+  </div>
+
+  <script>
+    // Theme Management
+    const body = document.body;
+    const themeIcon = document.getElementById('themeIcon');
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    body.setAttribute('data-theme', currentTheme);
+    themeIcon.textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+
+    function toggleTheme() {
+      const current = body.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      body.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      themeIcon.textContent = next === 'dark' ? '🌙' : '☀️';
+    }
+
+    // Data Management
+    let lastData = null;
+    let isUpdating = false;
+
+    async function fetchData() {
+      if (isUpdating) return;
+      isUpdating = true;
+
+      try {
+        const res = await fetch('/data');
+        const data = await res.json();
+        
+        // Update basic values with animation
+        updateValue('temp', data.temp ?? '--', '°C');
+        updateValue('dist', data.distance, ' cm');
+        updateValue('water', data.water_height, ' cm');
+        updateValue('percent', data.percent, '%');
+        updateValue('liters', data.volume_liters, ' L');
+        
+        // Update environmental data
+        const outsideTemp = document.getElementById('outside_temp');
+        const outsideHumi = document.getElementById('outside_humi');
+        outsideTemp.textContent = (data.outside_temp > -50) ? data.outside_temp + '°C' : '--';
+        outsideHumi.textContent = (data.outside_humi >= 0) ? data.outside_humi + '%' : '--';
+        
+        // Update tank info
+        document.getElementById('tankname').textContent = data.tank_name || 'Tank';
+        document.getElementById('version').textContent = data.fw_version || '--';
+        
+        // Update water visualization
+        const waterFill = document.getElementById('waterFill');
+        const tankPercentage = document.getElementById('tankPercentage');
+        const fillPercent = Math.max(0, Math.min(100, data.percent || 0));
+        waterFill.style.height = fillPercent + '%';
+        tankPercentage.textContent = fillPercent + '%';
+        
+        // Ajuster la couleur du texte selon le niveau d'eau
+        if (fillPercent > 50) {
+          tankPercentage.style.color = 'white';
+          tankPercentage.style.textShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+        } else {
+          tankPercentage.style.color = 'var(--primary)';
+          tankPercentage.style.textShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
+        }
+        
+        // Masquer l'animation de vague si le niveau est très bas
+        if (fillPercent < 5) {
+          waterFill.style.setProperty('--wave-opacity', '0');
+        } else {
+          waterFill.style.setProperty('--wave-opacity', '1');
+        }
+        
+        // Update pump state
+        updatePumpState(data.pump_is_on);
+        
+        lastData = data;
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        isUpdating = false;
       }
     }
 
-    function togglePump() {
-      fetch('/relay_toggle', { method: 'POST' }).then(fetchData);
+    function updateValue(id, value, suffix = '') {
+      const element = document.getElementById(id);
+      if (element && element.textContent !== value + suffix) {
+        element.textContent = value;
+        element.parentElement.classList.add('success-pulse');
+        setTimeout(() => element.parentElement.classList.remove('success-pulse'), 500);
+      }
     }
 
-    setInterval(fetchData, 2000);
-    window.onload = fetchData;
+    function updatePumpState(isOn) {
+      const pumpState = document.getElementById('pumpstate');
+      const pumpBtn = document.getElementById('pumpBtn');
+      const pumpBtnText = document.getElementById('pumpBtnText');
+      const pumpBtnIcon = document.getElementById('pumpBtnIcon');
+      const statusIndicator = document.getElementById('statusIndicator');
+      
+      pumpState.textContent = isOn ? 'ON' : 'OFF';
+      pumpBtn.classList.toggle('active', isOn);
+      statusIndicator.classList.toggle('active', isOn);
+      pumpBtnText.textContent = isOn ? 'Turn OFF' : 'Turn ON';
+      pumpBtnIcon.textContent = isOn ? '⏸️' : '▶️';
+    }
 
-    document.addEventListener('DOMContentLoaded', function () {
-      const form = document.getElementById('calibForm');
-      form.onsubmit = function (ev) {
-        if (!confirm("Are you sure you want to calibrate the maximum water height?\nThis will overwrite the current calibration.")) {
-          ev.preventDefault();
-        }
-      };
+    async function togglePump() {
+      const pumpBtn = document.getElementById('pumpBtn');
+      pumpBtn.disabled = true;
+      
+      try {
+        await fetch('/relay_toggle', { method: 'POST' });
+        await fetchData();
+      } catch (error) {
+        console.error('Error toggling pump:', error);
+      } finally {
+        pumpBtn.disabled = false;
+      }
+    }
+
+    // Calibration confirmation
+    document.getElementById('calibForm').addEventListener('submit', function(e) {
+      if (!confirm('Are you sure you want to calibrate the maximum water height?\n\nThis will set the current water level as 100% capacity.')) {
+        e.preventDefault();
+      }
     });
+
+    // Initial load and periodic updates
+    fetchData();
+    setInterval(fetchData, 2000);
+
+    let connectionLost = false;
+    setInterval(async () => {
+      try {
+        const res = await fetch('/data');
+        if (connectionLost && res.ok) {
+          connectionLost = false;
+          console.log('Connection restored');
+        }
+      } catch (error) {
+        if (!connectionLost) {
+          connectionLost = true;
+          console.error('Connection lost');
+        }
+      }
+    }, 5000);
   </script>
-</head>
-<body>
-  <div class="container">
-    <h2>💧 <span id="tankname">--</span> Monitor <span id="version">--</span></h2>
-    <table>
-      <tr><th>Parameter</th><th>Value</th></tr>
-      <tr><td>Temperature</td><td id="temp">--</td></tr>
-      <tr><td>Outside Temperature</td><td id="outside_temp">--</td></tr>
-      <tr><td>Outside Humidity</td><td id="outside_humi">--</td></tr>
-      <tr><td>Distance (sensor → water)</td><td id="dist">--</td></tr>
-      <tr><td>Water Height</td><td id="water">--</td></tr>
-      <tr><td>Fill Percentage</td><td id="percent">--</td></tr>
-      <tr><td>Estimated Volume</td><td id="liters">--</td></tr>
-      <tr><td>Pump State</td>
-        <td>
-          <button id="pumpBtn" onclick="togglePump()">
-            <span id="pumpstate">--</span>
-          </button>
-        </td>
-      </tr>
-    </table>
-    <a href="/settings">⚙️ Settings →</a>
-    <form id="calibForm" method="POST" action="/calibrate">
-      <button type="submit">Calibrate Max Water Height</button>
-    </form>
-  </div>
 </body>
 </html>

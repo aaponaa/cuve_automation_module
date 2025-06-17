@@ -2,401 +2,1005 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Settings</title>
+  <title>Settings - Water Monitor Pro</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💧%3C/text%3E%3C/svg%3E">
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     :root {
-      --primary: #0077b6;
-      --accent: #00b4d8;
-      --danger: #e63946;
-      --bg-light: #e0f7fa;
-      --text: #003049;
-      --light-bg: rgba(255,255,255,0.78);
-      --radius: 10px;
+      --primary: #0ea5e9;
+      --primary-dark: #0284c7;
+      --primary-light: #38bdf8;
+      --secondary: #06b6d4;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-dark: #0f172a;
+      --bg-light: #f8fafc;
+      --surface-dark: #1e293b;
+      --surface-light: #ffffff;
+      --text-dark: #f1f5f9;
+      --text-light: #0f172a;
+      --text-muted-dark: #94a3b8;
+      --text-muted-light: #64748b;
+      --border-dark: #334155;
+      --border-light: #e2e8f0;
+      --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="light"] {
+      --bg: var(--bg-light);
+      --surface: var(--surface-light);
+      --text: var(--text-light);
+      --text-muted: var(--text-muted-light);
+      --border: var(--border-light);
+      --input-bg: #f1f5f9;
+      --input-focus: #e0f2fe;
+    }
+
+    [data-theme="dark"] {
+      --bg: var(--bg-dark);
+      --surface: var(--surface-dark);
+      --text: var(--text-dark);
+      --text-muted: var(--text-muted-dark);
+      --border: var(--border-dark);
+      --input-bg: #0f172a;
+      --input-focus: #1e293b;
     }
 
     body {
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, var(--bg-light), #a7c8ff);
-      font-family: 'Segoe UI', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
       color: var(--text);
+      line-height: 1.6;
+      transition: var(--transition);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .background-pattern {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle at 25% 25%, var(--primary) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, var(--secondary) 0%, transparent 50%);
+      opacity: 0.03;
+      pointer-events: none;
     }
 
     .container {
-      margin-top: 1%;
-      margin-bottom: 1%;
-      background: var(--light-bg);
-      backdrop-filter: blur(10px);
-      border-radius: var(--radius);
-      padding: 1.5em 1.2em;
-      max-width: 500px;
-      width: 95%;
-      box-shadow: 0 6px 28px rgba(0, 0, 0, 0.06);
-      animation: fadeIn 0.6s ease-out;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3rem;
+      animation: slideDown 0.6s ease-out;
     }
 
-    h2 {
-      text-align: center;
-      margin-bottom: 1em;
-      font-size: 1.3rem;
-      color: var(--primary);
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
-    .setting-section {
-      background: rgba(255, 255, 255, 0.6);
-      padding: 1em;
-      border-radius: var(--radius);
-      margin-bottom: 1.1em;
-      box-shadow: 0 3px 12px rgba(0, 180, 216, 0.04);
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
     }
 
-    .setting-section:hover {
-      box-shadow: 0 4px 14px rgba(0, 180, 216, 0.08);
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+      box-shadow: var(--shadow);
     }
 
-    .section-title {
-      font-size: 1.55rem;
+    .logo-text h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .logo-text p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: -0.25rem;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .theme-toggle {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+      font-size: 20px;
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.05);
+      box-shadow: var(--shadow);
+    }
+
+    .back-btn {
+      padding: 0.75rem 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: var(--text);
+      transition: var(--transition);
+      font-weight: 500;
+    }
+
+    .back-btn:hover {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    /* Settings Grid */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: var(--transition);
+      animation: fadeInUp 0.6s ease-out forwards;
+      opacity: 0;
+    }
+
+    .settings-card:nth-child(1) { animation-delay: 0.1s; }
+    .settings-card:nth-child(2) { animation-delay: 0.2s; }
+    .settings-card:nth-child(3) { animation-delay: 0.3s; }
+    .settings-card:nth-child(4) { animation-delay: 0.4s; }
+    .settings-card:nth-child(5) { animation-delay: 0.5s; }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .settings-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--primary);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .card-icon.tank { background: rgba(14, 165, 233, 0.1); color: var(--primary); }
+    .card-icon.mqtt { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    .card-icon.timing { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+    .card-icon.utilities { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+    .card-icon.firmware { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+
+    .card-title {
+      font-size: 1.125rem;
       font-weight: 600;
-      margin-bottom: 0.5em;
-      color: var(--accent);
-      text-shadow: 0 1px 2px #cbeffd;
+      color: var(--text);
+    }
+
+    /* Form Styles */
+    .form-group {
+      margin-bottom: 1.25rem;
     }
 
     label {
       display: block;
-      margin-top: 0.6em;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #00506e;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
-    input, select {
-      padding: 8px;
-      width: 80%;
-      border-radius: 6px;
-      border: 1px solid #b1c2d6;
-      background: #f4fbff;
-      font-size: 0.95rem;
-      transition: border 0.2s;
-    }
-
-    input:focus, select:focus {
-      border: 1.5px solid var(--accent);
-      outline: none;
-      background: #eaf8fd;
-    }
-
-    button {
-      margin-top: 1em;
-      padding: 9px 18px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      box-shadow: 0 2px 6px rgba(0, 180, 216, 0.06);
-    }
-
-    button:hover {
-      transform: scale(1.03);
-    }
-
-    button[type="submit"] {
-      background: linear-gradient(90deg, var(--primary), var(--accent));
-      color: white;
-    }
-
-    .danger-btn {
-      background: var(--danger);
-      color: white;
-    }
-
-    a {
-      display: inline-block;
-      margin-top: 1em;
-      text-align: center;
-      color: var(--primary);
-      font-weight: 600;
-      text-decoration: none;
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    input[type="file"],
+    select {
       width: 100%;
-      font-size: 0.95rem;
+      padding: 0.75rem 1rem;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      color: var(--text);
+      transition: var(--transition);
     }
 
-    .update-link{
-      text-align: left;
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: var(--input-focus);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
     }
 
-    a:hover {
-      color: #023e8a;
-      text-decoration: underline;
+    .input-group {
+      display: flex;
+      gap: 1rem;
     }
 
-    @media (max-width: 650px) {
+    .input-group .form-group {
+      flex: 1;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: white;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      filter: brightness(1.1);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn-secondary {
+      background: var(--text-muted);
+    }
+
+    .btn-secondary:hover {
+      background: var(--text-muted-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* Status Indicators */
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border-radius: 8px;
+      font-weight: 500;
+      margin-top: 1rem;
+    }
+
+    .status-indicator.connected {
+      color: var(--success);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .status-indicator.disconnected {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Version Info */
+    .version-info {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+    }
+
+    .version-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+    }
+
+    .version-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .version-value {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .update-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-top: 0.5rem;
+    }
+
+    .update-status.up-to-date {
+      color: var(--success);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .update-status.update-available {
+      color: var(--warning);
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    /* MQTT Toggle */
+    .mqtt-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Shape Toggle */
+    .shape-fields {
+      margin-top: 1rem;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    /* Utilities Grid */
+    .utilities-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
       .container {
-        padding: 1.2em 1em;
+        padding: 1rem;
       }
 
-      h2 {
-        font-size: 1.1rem;
+      .header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
       }
 
-      .section-title {
-        font-size: 0.95rem;
+      .settings-grid {
+        grid-template-columns: 1fr;
       }
+
+      .input-group {
+        flex-direction: column;
+      }
+
+      .utilities-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Loading State */
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast Notifications */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      padding: 1rem 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      animation: slideInRight 0.3s ease-out;
+      z-index: 1000;
+    }
+
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.success {
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .toast.error {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
 </head>
-<body>
+<body data-theme="dark">
+  <div class="background-pattern"></div>
+  
   <div class="container">
-    <h2>⚙️ Settings</h2>
-
-    <div class="setting-section">
-      <form method="POST" action="/save_settings">
-        <div class="section-title">🛢️ Tank Settings</div>
-
-        <label>Tank Name:</label>
-        <input type="text" name="tank_name" id="tank_name_input" maxlength="32" required>
-
-        <label>Sensor Height (cm):</label>
-        <input type="number" step="0.1" name="tank_height" id="tank_height_input" required>
-
-        <label>Tank Shape:</label>
-        <select name="tank_shape" id="tank_shape">
-          <option value="0">Rectangular</option>
-          <option value="1">Round (cylinder)</option>
-        </select>
-
-        <div id="rect_fields">
-          <label>Tank Length (cm):</label>
-          <input type="number" step="0.1" name="tank_length" id="tank_length_input">
-
-          <label>Tank Width (cm):</label>
-          <input type="number" step="0.1" name="tank_width" id="tank_width_input">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">⚙️</div>
+        <div class="logo-text">
+          <h1>Settings</h1>
+          <p>Water Monitor Configuration</p>
         </div>
+      </div>
+      <div class="header-controls">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+          <span id="themeIcon">🌙</span>
+        </button>
+        <a href="/" class="back-btn">
+          <span>←</span>
+          <span>Back to Dashboard</span>
+        </a>
+      </div>
+    </header>
 
-        <div id="cyl_fields">
-          <label>Tank Diameter (cm):</label>
-          <input type="number" step="0.1" name="tank_diameter" id="tank_diameter_input">
+    <!-- Settings Grid -->
+    <div class="settings-grid">
+      <!-- Tank Settings Card -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-icon tank">🛢️</div>
+          <h2 class="card-title">Tank Configuration</h2>
         </div>
+        <form method="POST" action="/save_settings" onsubmit="return saveTankSettings(event)">
+          <div class="form-group">
+            <label for="tank_name_input">Tank Name</label>
+            <input type="text" name="tank_name" id="tank_name_input" maxlength="32" required placeholder="Enter tank name">
+          </div>
 
-        <button type="submit">Save</button>
-      </form>
-    </div>
+          <div class="form-group">
+            <label for="tank_height_input">Sensor Height (cm)</label>
+            <input type="number" step="0.1" name="tank_height" id="tank_height_input" required placeholder="Distance from sensor to tank bottom">
+          </div>
 
-    <div class="setting-section">
-      <div class="section-title">📡 MQTT Settings</div>
-      <form id="mqttToggleForm">
-        <label>MQTT Server:</label>
-        <input type="text" name="mqtt_host" id="mqtt_host_input" required>
+          <div class="form-group">
+            <label for="tank_shape">Tank Shape</label>
+            <select name="tank_shape" id="tank_shape" onchange="updateTankFields()">
+              <option value="0">Rectangular</option>
+              <option value="1">Cylindrical</option>
+            </select>
+          </div>
 
-        <label>MQTT Username:</label>
-        <input type="text" name="mqtt_user" id="mqtt_user_input">
+          <div id="rect_fields" class="shape-fields">
+            <div class="input-group">
+              <div class="form-group">
+                <label for="tank_length_input">Length (cm)</label>
+                <input type="number" step="0.1" name="tank_length" id="tank_length_input" placeholder="0.0">
+              </div>
+              <div class="form-group">
+                <label for="tank_width_input">Width (cm)</label>
+                <input type="number" step="0.1" name="tank_width" id="tank_width_input" placeholder="0.0">
+              </div>
+            </div>
+          </div>
 
-        <label>MQTT Password:</label>
-        <input type="password" name="mqtt_pass" id="mqtt_pass_input" autocomplete="off">
+          <div id="cyl_fields" class="shape-fields hidden">
+            <div class="form-group">
+              <label for="tank_diameter_input">Diameter (cm)</label>
+              <input type="number" step="0.1" name="tank_diameter" id="tank_diameter_input" placeholder="0.0">
+            </div>
+          </div>
 
-
-        <button type="submit" id="mqttToggleBtn">...</button>
-      </form>
-      <span id="mqttStatus" style="font-weight: bold; margin-top: 1em; display: block;">Status: Checking...</span>
-    </div>
-
-    <div class="setting-section">
-      <div class="section-title">📤 Publish Timings</div>
-      <form method="POST" action="/period">
-
-        <label>MQTT publish period (s):</label>
-        <input type="number" min="1" max="3600" name="mqtt_publish" id="mqtt_publish_input" required>
-        <label>External Temperature read period (s):</label>
-        <input type="number" min="1" max="3600" name="temp_refresh" id="temp_refresh_input" required>
-        </br>
-        <button type="submit">Save</button>
-      </form>
-    </div>
-
-    <div class="setting-section">
-      <div class="section-title">🛠️ Utilities</div>
-      <form action="/reboot" method="POST" onsubmit="return confirm('Reboot device?');">
-        <button type="submit" class="danger-btn">Reboot Device</button>
-      </form>
-
-      <form method="POST" action="/factory_reset" onsubmit="return confirm('This will erase all settings and WiFi config! Proceed?');">
-        <button type="submit" class="danger-btn" style="margin-top: 10px;">Factory Reset</button>
-      </form>
-    </div>
-
-    <div class="setting-section">
-      <div class="section-title">🧬 Firmware Update</div>
-
-      <div class="version-info">
-        Current version: <span id="version">--</span><br>
-        Latest version: <span id="latest-version">Checking...</span><br>
-        <a class="update-link" href="https://github.com/aaponaa/cuve_automation_module/releases"><span id="update-status" class="status"></span></a>
+          <button type="submit" class="btn btn-primary">
+            <span>💾</span>
+            <span>Save Configuration</span>
+          </button>
+        </form>
       </div>
 
-      <form id="manualUploadForm" method="POST" action="/upload" enctype="multipart/form-data">
-        <label style="margin-top: 1em;">Manual Upload (.bin):</label>
-        <input type="file" name="update" required>
-        <button type="submit" >Upload</button>
-      </form>
+      <!-- MQTT Settings Card -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-icon mqtt">📡</div>
+          <h2 class="card-title">MQTT Connection</h2>
+        </div>
+        <form id="mqttToggleForm" onsubmit="return handleMqttToggle(event)">
+          <div class="form-group">
+            <label for="mqtt_host_input">MQTT Server</label>
+            <input type="text" name="mqtt_host" id="mqtt_host_input" placeholder="mqtt.broker.com" required>
+          </div>
 
+          <div class="input-group">
+            <div class="form-group">
+              <label for="mqtt_user_input">Username</label>
+              <input type="text" name="mqtt_user" id="mqtt_user_input" placeholder="Optional">
+            </div>
+            <div class="form-group">
+              <label for="mqtt_pass_input">Password</label>
+              <input type="password" name="mqtt_pass" id="mqtt_pass_input" placeholder="Optional" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="mqtt-controls">
+            <button type="submit" id="mqttToggleBtn" class="btn btn-primary">
+              <span class="loading hidden" id="mqttLoading"></span>
+              <span id="mqttBtnText">Connect</span>
+            </button>
+            <div class="status-indicator disconnected" id="mqttStatus">
+              <span class="status-dot" style="background: currentColor;"></span>
+              <span>Checking connection...</span>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Timing Settings Card -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-icon timing">📤</div>
+          <h2 class="card-title">Publish Intervals</h2>
+        </div>
+        <form method="POST" action="/period" onsubmit="return saveTimings(event)">
+          <div class="form-group">
+            <label for="mqtt_publish_input">MQTT Publish Period (seconds)</label>
+            <input type="number" min="1" max="3600" name="mqtt_publish" id="mqtt_publish_input" required placeholder="30">
+          </div>
+
+          <div class="form-group">
+            <label for="temp_refresh_input">Temperature Refresh Period (seconds)</label>
+            <input type="number" min="1" max="3600" name="temp_refresh" id="temp_refresh_input" required placeholder="60">
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <span>⏱️</span>
+            <span>Update Intervals</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Utilities Card -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-icon utilities">🛠️</div>
+          <h2 class="card-title">System Utilities</h2>
+        </div>
+        <div class="utilities-grid">
+          <form action="/reboot" method="POST" onsubmit="return confirm('Are you sure you want to reboot the device? The system will be temporarily unavailable.');">
+            <button type="submit" class="btn btn-secondary" style="width: 100%;">
+              <span>🔄</span>
+              <span>Reboot Device</span>
+            </button>
+          </form>
+
+          <form method="POST" action="/factory_reset" onsubmit="return confirm('⚠️ WARNING: This will erase ALL settings and WiFi configuration!\n\nThe device will return to factory defaults.\n\nAre you absolutely sure?');">
+            <button type="submit" class="btn btn-danger" style="width: 100%;">
+              <span>⚠️</span>
+              <span>Factory Reset</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Firmware Update Card -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-icon firmware">🧬</div>
+          <h2 class="card-title">Firmware Management</h2>
+        </div>
+        
+        <div class="version-info">
+          <div class="version-row">
+            <span class="version-label">Current Version</span>
+            <span class="version-value" id="version">--</span>
+          </div>
+          <div class="version-row">
+            <span class="version-label">Latest Version</span>
+            <span class="version-value" id="latest-version">
+              <span class="loading"></span>
+            </span>
+          </div>
+          <div id="update-status-container"></div>
+        </div>
+
+        <form id="manualUploadForm" method="POST" action="/upload" enctype="multipart/form-data" onsubmit="return handleFirmwareUpload(event)">
+          <div class="form-group">
+            <label for="firmware-file">Manual Firmware Upload (.bin)</label>
+            <input type="file" name="update" id="firmware-file" accept=".bin" required>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <span>📦</span>
+            <span>Upload Firmware</span>
+          </button>
+        </form>
+      </div>
     </div>
-
-    <a href="/">← Back to Dashboard</a>
   </div>
 
+  <!-- Toast Container -->
+  <div id="toast" class="toast hidden"></div>
+
   <script>
+    // Theme Management
+    const body = document.body;
+    const themeIcon = document.getElementById('themeIcon');
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    body.setAttribute('data-theme', currentTheme);
+    themeIcon.textContent = currentTheme === 'dark' ? '🌙' : '☀️';
 
+    function toggleTheme() {
+      const current = body.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      body.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      themeIcon.textContent = next === 'dark' ? '🌙' : '☀️';
+    }
+
+    // Toast Notifications
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <span>${type === 'success' ? '✅' : '❌'}</span>
+        <span>${message}</span>
+      `;
+      
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+    }
+
+    // Load Settings
     async function fillSettingsFromData() {
-      const res = await fetch('/datasettings');
-      const data = await res.json();
+      try {
+        const res = await fetch('/datasettings');
+        const data = await res.json();
 
-      document.getElementById('tank_name_input').value = data.tank_name || "";
-      document.getElementById('tank_height_input').value = data.tank_height_cm || "";
-      document.getElementById('tank_shape').value = data.tank_shape || 0;
+        document.getElementById('tank_name_input').value = data.tank_name || "";
+        document.getElementById('tank_height_input').value = data.tank_height_cm || "";
+        document.getElementById('tank_shape').value = data.tank_shape || 0;
 
-      if (data.tank_shape == 0) {
-        document.getElementById('rect_fields').style.display = 'block';
-        document.getElementById('cyl_fields').style.display = 'none';
-      } else {
-        document.getElementById('rect_fields').style.display = 'none';
-        document.getElementById('cyl_fields').style.display = 'block';
+        updateTankFields();
+
+        document.getElementById('tank_length_input').value = data.tank_length_cm || "";
+        document.getElementById('tank_width_input').value = data.tank_width_cm || "";
+        document.getElementById('tank_diameter_input').value = data.tank_diameter_cm || "";
+        document.getElementById('mqtt_host_input').value = data.mqtt_host || "";
+        document.getElementById('mqtt_user_input').value = data.mqtt_username || "";
+        document.getElementById('mqtt_pass_input').value = data.mqtt_password || "";
+        document.getElementById('mqtt_publish_input').value = data.mqtt_publish_s || "";
+        document.getElementById('temp_refresh_input').value = data.temp_refresh_s || "";
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        showToast('Error loading settings', 'error');
       }
-
-      document.getElementById('tank_length_input').value = data.tank_length_cm || "";
-      document.getElementById('tank_width_input').value = data.tank_width_cm || "";
-      document.getElementById('tank_diameter_input').value = data.tank_diameter_cm || "";
-      document.getElementById('mqtt_host_input').value = data.mqtt_host || "";
-      document.getElementById('mqtt_user_input').value = data.mqtt_username || "";
-      document.getElementById('mqtt_pass_input').value = data.mqtt_password || "";
-      document.getElementById('mqtt_publish_input').value = data.mqtt_publish_s || "";
-      document.getElementById('temp_refresh_input').value = data.temp_refresh_s || "";
     }
 
+    // Tank Shape Toggle
     function updateTankFields() {
-      var shape = document.getElementById('tank_shape').value;
-      document.getElementById('rect_fields').style.display = (shape == '0') ? 'block' : 'none';
-      document.getElementById('cyl_fields').style.display = (shape == '1') ? 'block' : 'none';
-    }
-    
-    function updateMqttStatus() {
-      fetch('/mqtt_status')
-        .then(r => r.json())
-        .then(j => {
-          let el = document.getElementById('mqttStatus');
-          let btn = document.getElementById('mqttToggleBtn');
-          if (j.connected) {
-            el.textContent = "Status: Connected ✅";
-            el.style.color = "#28a745";
-            btn.textContent = "Disconnect";
-            btn.dataset.action = "disconnect";
-          } else {
-            el.textContent = "Status: Disconnected ❌";
-            el.style.color = "#ff0033";
-            btn.textContent = "Connect";
-            btn.dataset.action = "connect";
-          }
-        });
+      const shape = document.getElementById('tank_shape').value;
+      const rectFields = document.getElementById('rect_fields');
+      const cylFields = document.getElementById('cyl_fields');
+      
+      if (shape == '0') {
+        rectFields.classList.remove('hidden');
+        cylFields.classList.add('hidden');
+      } else {
+        rectFields.classList.add('hidden');
+        cylFields.classList.remove('hidden');
+      }
     }
 
-    document.getElementById("mqttToggleForm").onsubmit = function(ev) {
-      ev.preventDefault();
-      const btn = document.getElementById("mqttToggleBtn");
-      const action = btn.dataset.action;
-      if (action === "connect") {
-        const formData = new FormData();
-        formData.append("mqtt_host", document.getElementById("mqtt_host_input").value);
-        formData.append("mqtt_user", document.getElementById("mqtt_user_input").value);
-        formData.append("mqtt_pass", document.getElementById("mqtt_pass_input").value);
-        fetch('/mqtt_connect', {
+    // MQTT Status Update
+    async function updateMqttStatus() {
+      try {
+        const res = await fetch('/mqtt_status');
+        const data = await res.json();
+        const statusEl = document.getElementById('mqttStatus');
+        const btnText = document.getElementById('mqttBtnText');
+        const btn = document.getElementById('mqttToggleBtn');
+        
+        if (data.connected) {
+          statusEl.className = 'status-indicator connected';
+          statusEl.innerHTML = `
+            <span class="status-dot" style="background: currentColor;"></span>
+            <span>Connected to MQTT</span>
+          `;
+          btnText.textContent = 'Disconnect';
+          btn.dataset.action = 'disconnect';
+        } else {
+          statusEl.className = 'status-indicator disconnected';
+          statusEl.innerHTML = `
+            <span class="status-dot" style="background: currentColor;"></span>
+            <span>Disconnected</span>
+          `;
+          btnText.textContent = 'Connect';
+          btn.dataset.action = 'connect';
+        }
+      } catch (error) {
+        console.error('Error checking MQTT status:', error);
+      }
+    }
+
+    // MQTT Toggle Handler
+    async function handleMqttToggle(event) {
+      event.preventDefault();
+      const btn = document.getElementById('mqttToggleBtn');
+      const loading = document.getElementById('mqttLoading');
+      const btnText = document.getElementById('mqttBtnText');
+      const action = btn.dataset.action || 'connect';
+      
+      btn.disabled = true;
+      loading.classList.remove('hidden');
+      btnText.textContent = action === 'connect' ? 'Connecting...' : 'Disconnecting...';
+      
+      try {
+        if (action === 'connect') {
+          const formData = new FormData();
+          formData.append('mqtt_host', document.getElementById('mqtt_host_input').value);
+          formData.append('mqtt_user', document.getElementById('mqtt_user_input').value);
+          formData.append('mqtt_pass', document.getElementById('mqtt_pass_input').value);
+          
+          await fetch('/mqtt_connect', {
+            method: 'POST',
+            body: formData
+          });
+          
+          showToast('MQTT connected successfully', 'success');
+        } else {
+          if (confirm('Are you sure you want to disconnect from MQTT?')) {
+            await fetch('/disable_mqtt', { method: 'POST' });
+            showToast('MQTT disconnected', 'success');
+          }
+        }
+        
+        await updateMqttStatus();
+      } catch (error) {
+        console.error('Error toggling MQTT:', error);
+        showToast('Error updating MQTT connection', 'error');
+      } finally {
+        btn.disabled = false;
+        loading.classList.add('hidden');
+      }
+      
+      return false;
+    }
+
+    // Save Tank Settings
+    async function saveTankSettings(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      
+      try {
+        await fetch('/save_settings', {
           method: 'POST',
           body: formData
-        }).then(r => r.json()).then(updateMqttStatus);
-      } else if (action === "disconnect") {
-        if (confirm("Disable MQTT?")) {
-          fetch('/disable_mqtt', { method: 'POST' })
-            .then(() => updateMqttStatus());
-        }
+        });
+        showToast('Tank configuration saved successfully', 'success');
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        showToast('Error saving configuration', 'error');
       }
-    };
+      
+      return false;
+    }
 
+    // Save Timing Settings
+    async function saveTimings(event) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      
+      try {
+        await fetch('/period', {
+          method: 'POST',
+          body: formData
+        });
+        showToast('Timing intervals updated', 'success');
+      } catch (error) {
+        console.error('Error saving timings:', error);
+        showToast('Error updating intervals', 'error');
+      }
+      
+      return false;
+    }
 
+    // Firmware Upload Handler
+    async function handleFirmwareUpload(event) {
+      event.preventDefault();
+      
+      if (!confirm('Are you sure you want to upload new firmware? The device will restart after installation.')) {
+        return false;
+      }
+      
+      const form = event.target;
+      const formData = new FormData(form);
+      
+      try {
+        showToast('Uploading firmware... Please wait', 'success');
+        await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+        showToast('Firmware uploaded successfully. Device will restart.', 'success');
+      } catch (error) {
+        console.error('Error uploading firmware:', error);
+        showToast('Error uploading firmware', 'error');
+      }
+      
+      return false;
+    }
+
+    // Version Check
+    async function fetchVersionAndCompare() {
+      try {
+        const res = await fetch('/data');
+        const data = await res.json();
+        const currentVersion = data.fw_version || '--';
+        document.getElementById('version').textContent = currentVersion;
+
+        const repo = "aaponaa/cuve_automation_module";
+        const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
+
+        const ghRes = await fetch(apiUrl);
+        const ghData = await ghRes.json();
+        const latestVersion = ghData.tag_name;
+        
+        document.getElementById('latest-version').textContent = latestVersion;
+        
+        const statusContainer = document.getElementById('update-status-container');
+        
+        if (currentVersion === latestVersion) {
+          statusContainer.innerHTML = `
+            <div class="update-status up-to-date">
+              <span>✅</span>
+              <span>System is up to date</span>
+            </div>
+          `;
+        } else {
+          statusContainer.innerHTML = `
+            <div class="update-status update-available">
+              <span>⚠️</span>
+              <span>Update available</span>
+            </div>
+            <a href="https://github.com/${repo}/releases" target="_blank" class="btn btn-primary" style="margin-top: 0.5rem; font-size: 0.75rem; padding: 0.5rem 1rem;">
+              <span>🔗</span>
+              <span>View Release Notes</span>
+            </a>
+          `;
+        }
+      } catch (error) {
+        console.error('Error checking version:', error);
+        document.getElementById('latest-version').textContent = 'Error checking';
+      }
+    }
+
+    // Initialize
     window.onload = () => {
       fillSettingsFromData();
       updateMqttStatus();
-      updateTankFields();
       fetchVersionAndCompare();
+      setInterval(updateMqttStatus, 5000);
     };
-
-    document.getElementById('tank_shape').onchange = updateTankFields;
-    setInterval(updateMqttStatus, 5000);
-
-    fetch("/topics_config")
-      .then(r => r.json())
-      .then(data => {
-        const table = document.getElementById("topics_table");
-        data.forEach(item => {
-          const row = document.createElement("tr");
-          const tdName = document.createElement("td");
-          tdName.textContent = item.topic;
-          const tdInput = document.createElement("td");
-          tdInput.style.textAlign = "right";
-          const checkbox = document.createElement("input");
-          checkbox.type = "checkbox";
-          checkbox.name = "enable_" + item.suffix;
-          checkbox.checked = item.enabled;
-          tdInput.appendChild(checkbox);
-          row.appendChild(tdName);
-          row.appendChild(tdInput);
-          table.appendChild(row);
-        });
-      });
-
-  async function fetchVersionAndCompare() {
-    try {
-      const res = await fetch('/data');
-      const data = await res.json();
-      const currentVersion = data.fw_version || '--';
-      document.getElementById('version').innerText = currentVersion;
-
-      const repo = "aaponaa/cuve_automation_module";
-      const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`;
-
-      const ghRes = await fetch(apiUrl);
-      const ghData = await ghRes.json();
-      const latestVersion = ghData.tag_name;
-      const asset = ghData.assets.find(a => a.name.endsWith(".bin"));
-
-      if (!asset) throw new Error("Firmware .bin not found in release");
-
-      document.getElementById("latest-version").textContent = latestVersion;
-      const updateStatus = document.getElementById("update-status");
-
-      if (currentVersion === latestVersion) {
-        updateStatus.textContent = "Up to date ✅";
-        updateStatus.className = "status up-to-date";
-      } else {
-        updateStatus.textContent = "New version available ⚠️";
-        updateStatus.dataset.downloadUrl = asset.browser_download_url;
-      }
-    } catch (err) {
-      console.error("Error fetching version info", err);
-      document.getElementById("latest-version").textContent = "Error";
-      document.getElementById("update-status").textContent = "Unable to check";
-    }
-  }
-
   </script>
 </body>
 </html>
