@@ -118,7 +118,6 @@ void publishDiscoveryMqttStatus(const String& tank_name) {
 
 // ---- Remove Discovery (on tank name change) ----
 void publishAllDiscovery(const String& tank_name) {
-  publishDiscoverySensor(tank_name, "water_level", "Water Level", "cm", "distance");
   publishDiscoverySensor(tank_name, "water_height", "Water Height", "cm");
   publishDiscoverySensor(tank_name, "water_percent", "Water %", "%");
   publishDiscoverySensor(tank_name, "water_volume", "Water Volume", "L");
@@ -137,7 +136,6 @@ void publishAllDiscovery(const String& tank_name) {
 void removeDiscovery(const String& old_tank_name) {
   String id = old_tank_name; id.replace(" ", "_");
 
-  mqtt.publish(("homeassistant/sensor/" + id + "_water_level/config").c_str(), "", true);
   mqtt.publish(("homeassistant/sensor/" + id + "_water_height/config").c_str(), "", true);
   mqtt.publish(("homeassistant/sensor/" + id + "_water_percent/config").c_str(), "", true);
   mqtt.publish(("homeassistant/sensor/" + id + "_water_volume/config").c_str(), "", true);
@@ -205,7 +203,7 @@ void handleMqttLoop() {
 
         String prefix = tank_name; prefix.replace(" ", "_");
 
-        mqtt.publish((prefix + "/water_distance").c_str(), String(distance, 1).c_str(), true); // ajouté
+        mqtt.publish((prefix + "/water_distance").c_str(), String(distance, 1).c_str(), true); 
 
         mqtt.publish((prefix + "/water_height").c_str(), String(water_height, 1).c_str(), true);
         mqtt.publish((prefix + "/water_percent").c_str(), String(percent, 1).c_str(), true);
