@@ -679,6 +679,7 @@
         <div class="logo-text">
           <h1><span id="tankname">Tank</span> Monitor</h1>
           <p>Version <span id="version">--</span></p>
+          <tr><td>WiFi Signal</td><span id="wifi_signal">...</span></tr>
         </div>
       </div>
       <div class="header-controls">
@@ -833,6 +834,9 @@
         // Update tank info
         document.getElementById('tankname').textContent = data.tank_name || 'Tank';
         document.getElementById('version').textContent = data.fw_version || '--';
+
+        // Wifi Signal 
+        document.getElementById("wifi_signal").innerText = data.wifi_signal + " dBm";
         
         // Update water visualization
         const waterFill = document.getElementById('waterFill');

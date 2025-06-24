@@ -31,6 +31,7 @@ static void handleData() {
   json += "\"outside_temp\":" + String(isnan(outside_temp) ? -99 : outside_temp, 1) + ",";
   json += "\"outside_humi\":" + String(isnan(outside_humi) ? -1 : outside_humi, 1) + ",";
   json += "\"pump_is_on\":" + String(pump_is_on ? "true" : "false");
+  json += ",\"wifi_signal\":" + String(WiFi.RSSI());
   json += "}";
 
   server.send(200, "application/json", json);
