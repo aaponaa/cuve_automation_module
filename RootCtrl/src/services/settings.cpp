@@ -9,6 +9,10 @@ void initSettings() {
   
   prefs.begin("cuve", true);
 
+  use_dht = prefs.getBool("use_dht", true);
+  use_ds18b20 = prefs.getBool("use_ds18b20", true);
+  ultrasonic_mode = prefs.getInt("ultrasonic_mode", 1);
+
   tank_name = prefs.getString("tank_name", "WaterTank");
   tank_height_cm = prefs.getFloat("tank_height", 100.0);
   tank_diameter_cm = prefs.getFloat("tank_diam", 60.0);
@@ -69,6 +73,16 @@ void saveSettings() {
     tank_shape = server.arg("tank_shape").toInt();
     LOG_INFO("SETTINGS", "Tank shape updated: " + String(tank_shape ? "rectangular" : "cylindrical"));
   }
+  if (server.hasArg("use_dht")) {
+  use_dht = server.arg("use_dht").toInt() == 1;
+  }
+  if (server.hasArg("use_ds18b20")) {
+    use_ds18b20 = server.arg("use_ds18b20").toInt() == 1;
+  }
+  if (server.hasArg("ultrasonic_mode")) {
+    ultrasonic_mode = server.arg("ultrasonic_mode").toInt();
+  }
+
 
   LOG_INFO("SETTINGS", "Saving settings to preferences...");
   prefs.begin("cuve", false);
@@ -79,6 +93,9 @@ void saveSettings() {
   prefs.putFloat("tank_width", tank_width_cm);
   prefs.putFloat("eau_max", eau_max_cm);
   prefs.putBool("tank_shape", tank_shape);
+  prefs.putBool("use_dht", use_dht);
+  prefs.putBool("use_ds18b20", use_ds18b20);
+  prefs.putInt("ultrasonic_mode", ultrasonic_mode);
   prefs.end();
   LOG_INFO("SETTINGS", "Settings saved to preferences successfully");
 

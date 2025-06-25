@@ -36,7 +36,7 @@ void loop() {
   
   // Log system health every 30 seconds
   static unsigned long lastHealthLog = 0;
-  if (millis() - lastHealthLog > 30000) {
+  if (millis() - lastHealthLog > 300000) {
     LOG_DEBUG("SYSTEM", "Free heap: " + String(ESP.getFreeHeap()) + " bytes");
     LOG_DEBUG("SYSTEM", "Uptime: " + String(millis() / 1000) + " seconds");
     lastHealthLog = millis();

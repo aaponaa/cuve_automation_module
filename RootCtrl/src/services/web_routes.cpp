@@ -52,6 +52,9 @@ static void handleDataSettings() {
   json += "\"mqtt_password\":\"" + mqtt_password + "\",";
   json += "\"mqtt_publish_s\":" + String(mqtt_publish_ms / 1000) + ",";
   json += "\"temp_refresh_s\":" + String(temp_refresh_ms / 1000);
+  json += ",\"use_dht\":" + String(use_dht ? "true" : "false");
+  json += ",\"use_ds18b20\":" + String(use_ds18b20 ? "true" : "false");
+  json += ",\"ultrasonic_mode\":" + String(ultrasonic_mode);
   json += "}";
   server.send(200, "application/json", json);
 }
@@ -66,7 +69,7 @@ static void handleGetLogs() {
   
   if (server.hasArg("count")) {
     count = server.arg("count").toInt();
-    if (count <= 0 || count > 200) {
+    if (count <= 0 || count > 1000) {
       count = 50; 
     }
   }

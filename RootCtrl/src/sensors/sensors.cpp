@@ -27,10 +27,10 @@ void initSensors() {
   ds18b20.begin();
   LOG_INFO("SENSORS", "DS18B20 initialized on pin " + String(ONE_WIRE_BUS));
 
-  if (USE_A02YYUW) {
-    mySerial.begin(9600, SERIAL_8N1, SENSOR_RX_PIN, -1);  // RX only
+  if (ultrasonic_mode == 2) {
+    mySerial.begin(9600, SERIAL_8N1, SENSOR_RX_PIN, -1);  // A02YYUW
     LOG_INFO("SENSORS", "A02YYUW initialized on RX pin " + String(SENSOR_RX_PIN));
-  } else {
+  } else if (ultrasonic_mode == 1) {
     pinMode(TRIG_PIN, OUTPUT);
     pinMode(ECHO_PIN, INPUT);
     LOG_INFO("SENSORS", "SR04M initialized - TRIG: " + String(TRIG_PIN) + ", ECHO: " + String(ECHO_PIN));
@@ -40,17 +40,17 @@ void initSensors() {
 void readSensorsLoop() {
   unsigned long now = millis();
 
-  if (now - lastDhtRead > temp_refresh_ms) {
+  if (use_dht && now - lastDhtRead > temp_refresh_ms) {
     readDHT();
     lastDhtRead = now;
   }
 
-  if (now - lastDs18Read > temp_refresh_ms) {
+  if (use_ds18b20 && now - lastDs18Read > temp_refresh_ms) {
     readDS18B20();
     lastDs18Read = now;
   }
 
-  if (USE_A02YYUW) {
+  if (ultrasonic_mode == 2) {
     float newDistance = readA02YYUW();
     if (newDistance > 0) {
       last_distance = newDistance;
@@ -166,7 +166,7 @@ float readA02YYUW() {
         LOG_WARNING("A02YYUW", "Out of range: " + String(distance) + " mm");
       }
     } else {
-      mySerial.read(); // discard
+      mySerial.read(); 
     }
   }
 
@@ -190,10 +190,12 @@ float calculateVolumeLiters(float height_cm) {
 }
 
 float measureDistance() {
-  if (USE_A02YYUW) {
+  if (ultrasonic_mode == 2) {
     return last_distance;
-  } else {
+  } else if (ultrasonic_mode == 1) {
     return readSR04M();
+  } else {
+    return -1.0;
   }
 }
 

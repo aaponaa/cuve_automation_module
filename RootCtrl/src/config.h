@@ -12,10 +12,10 @@
 
 // ========== GENERAL SETTINGS ==========
 
-#define FW_VERSION "v0.2.0"
+#define FW_VERSION "v1.0.0"
 extern String fw_version;
 
-#define USE_A02YYUW false  // Set to false to use SR04M
+//#define USE_A02YYUW false  // Set to false to use SR04M
 
 // ========== PIN DEFINITIONS ==========
 
@@ -38,6 +38,11 @@ extern String fw_version;
 #define RELAY_ACTIVE_LOW false
 
 // ========== GLOBALS ==========
+
+// Sensors 
+extern bool use_dht;
+extern bool use_ds18b20;
+extern int ultrasonic_mode;  // 0 = aucune, 1 = SR04M, 2 = A02YYUW
 
 // Web server and MQTT
 extern WebServer server;

@@ -3,6 +3,11 @@
 
 String fw_version = FW_VERSION;
 
+// Sensors 
+bool use_dht = true;
+bool use_ds18b20 = true;
+int ultrasonic_mode = 1;  // 0 = aucun, 1 = SR04M, 2 = A02YYUW
+
 // Web/MQTT
 WebServer server(80); 
 WiFiClient espClient;
@@ -32,7 +37,7 @@ unsigned long mqtt_publish_ms = 5000;
 // MQTT
 bool mqtt_enabled = true;
 
-String mqtt_host = "192.168.1.100";      // ou ton IP/nom de broker
-String mqtt_username = "user";          // ou vide
-String mqtt_password = "pass";          // ou vide
+String mqtt_host = "192.168.1.100";      
+String mqtt_username = "user";          
+String mqtt_password = "pass";          
 

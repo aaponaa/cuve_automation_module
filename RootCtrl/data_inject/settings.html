@@ -663,6 +663,46 @@
         </form>
       </div>
 
+      <!-- Sensors Configuration Card -->
+      <div class="settings-card">
+        <div class="card-header">
+          <div class="card-icon timing">📟</div>
+          <h2 class="card-title">Sensors Selection</h2>
+        </div>
+        <form onsubmit="return saveSensorSettings(event)">
+          <div class="form-group">
+            <label for="use_dht_select">Use DHT22 Sensor</label>
+            <select id="use_dht_select">
+              <option value="1">Enabled</option>
+              <option value="0">Disabled</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="use_ds18b20_select">Use DS18B20 Sensor</label>
+            <select id="use_ds18b20_select">
+              <option value="1">Enabled</option>
+              <option value="0">Disabled</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="ultrasonic_mode_select">Ultrasonic Sensor</label>
+            <select id="ultrasonic_mode_select">
+              <option value="0">None</option>
+              <option value="1">SR04M</option>
+              <option value="2">A02YYUW</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <span>🧪</span>
+            <span>Save Sensor Setup</span>
+          </button>
+        </form>
+      </div>
+
+
       <!-- Timing Settings Card -->
       <div class="settings-card">
         <div class="card-header">
@@ -806,6 +846,9 @@
         document.getElementById('mqtt_pass_input').value = data.mqtt_password || "";
         document.getElementById('mqtt_publish_input').value = data.mqtt_publish_s || "";
         document.getElementById('temp_refresh_input').value = data.temp_refresh_s || "";
+        document.getElementById('use_dht_select').value = data.use_dht ? "1" : "0";
+        document.getElementById('use_ds18b20_select').value = data.use_ds18b20 ? "1" : "0";
+        document.getElementById('ultrasonic_mode_select').value = data.ultrasonic_mode || "0";
       } catch (error) {
         console.error('Error loading settings:', error);
         showToast('Error loading settings', 'error');
@@ -941,6 +984,30 @@
       
       return false;
     }
+
+    // Save Sensor Settings
+    async function saveSensorSettings(event) {
+      event.preventDefault();
+
+      const formData = new FormData();
+      formData.append("use_dht", document.getElementById("use_dht_select").value);
+      formData.append("use_ds18b20", document.getElementById("use_ds18b20_select").value);
+      formData.append("ultrasonic_mode", document.getElementById("ultrasonic_mode_select").value);
+
+      try {
+        await fetch('/save_settings', {
+          method: 'POST',
+          body: formData
+        });
+        showToast('Sensor configuration saved', 'success');
+      } catch (error) {
+        console.error('Error saving sensor settings:', error);
+        showToast('Error saving sensor config', 'error');
+      }
+
+      return false;
+    }
+
 
     // Firmware Upload Handler
     async function handleFirmwareUpload(event) {
