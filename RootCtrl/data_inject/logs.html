@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>System Logs - Water Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #0ea5e9;
+      --primary-dark: #0284c7;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg-dark: #0f172a;
+      --bg-light: #f8fafc;
+      --surface-dark: #1e293b;
+      --surface-light: #ffffff;
+      --text-dark: #f1f5f9;
+      --text-light: #0f172a;
+      --text-muted-dark: #94a3b8;
+      --text-muted-light: #64748b;
+      --border-dark: #334155;
+      --border-light: #e2e8f0;
+      --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="light"] {
+      --bg: var(--bg-light);
+      --surface: var(--surface-light);
+      --text: var(--text-light);
+      --text-muted: var(--text-muted-light);
+      --border: var(--border-light);
+    }
+
+    [data-theme="dark"] {
+      --bg: var(--bg-dark);
+      --surface: var(--surface-dark);
+      --text: var(--text-dark);
+      --text-muted: var(--text-muted-dark);
+      --border: var(--border-dark);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      transition: var(--transition);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--primary), #06b6d4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: white;
+    }
+
+    .logo-text h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: var(--text);
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 500;
+      font-size: 0.875rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+      border-color: var(--danger);
+    }
+
+    /* Controls */
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    select {
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.875rem;
+    }
+
+    /* Log Table */
+    .log-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .log-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .log-stats {
+      display: flex;
+      gap: 2rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .log-table {
+      width: 100%;
+      overflow-x: auto;
+      max-height: 900px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background: var(--bg);
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+
+    tr:hover {
+      background: var(--bg);
+    }
+
+    /* Log Levels */
+    .log-level {
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      display: inline-block;
+    }
+
+    .log-level.debug { 
+      background: rgba(139, 92, 246, 0.1); 
+      color: #8b5cf6; 
+    }
+
+    .log-level.info { 
+      background: rgba(14, 165, 233, 0.1); 
+      color: var(--primary); 
+    }
+
+    .log-level.warn { 
+      background: rgba(245, 158, 11, 0.1); 
+      color: var(--warning); 
+    }
+
+    .log-level.warning { 
+      background: rgba(245, 158, 11, 0.1); 
+      color: var(--warning); 
+    }
+
+    .log-level.error { 
+      background: rgba(239, 68, 68, 0.1); 
+      color: var(--danger); 
+    }
+
+    .log-time {
+      font-family: 'Monaco', 'Consolas', monospace;
+      color: var(--text-muted);
+      font-size: 0.825rem;
+    }
+
+    .log-module {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .log-message {
+      font-family: 'Monaco', 'Consolas', monospace;
+      word-break: break-word;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 4rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Auto-refresh indicator */
+    .auto-refresh {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    .auto-refresh input {
+      margin: 0;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Export Button */
+    .export-btn {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: var(--transition);
+      font-size: 24px;
+    }
+
+    .export-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .header {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .log-table {
+        font-size: 0.75rem;
+      }
+
+      th, td {
+        padding: 0.5rem;
+      }
+
+      .export-btn {
+        bottom: 1rem;
+        right: 1rem;
+      }
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">📋</div>
+        <div class="logo-text">
+          <h1>System Logs</h1>
+          <p>Real-time debugging information</p>
+        </div>
+      </div>
+      <div class="header-controls">
+        <button class="btn" onclick="toggleTheme()">
+          <span id="themeIcon">🌙</span>
+          <span>Theme</span>
+        </button>
+        <a href="/settings" class="btn">
+          <span>⚙️</span>
+          <span>Settings</span>
+        </a>
+        <a href="/" class="btn">
+          <span>📊</span>
+          <span>Dashboard</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div>
+        <label for="logCount">Show last:</label>
+        <select id="logCount" onchange="fetchLogs()">
+          <option value="50" selected>50 entries</option>
+          <option value="100">100 entries</option>
+          <option value="200">200 entries</option>
+        </select>
+      </div>
+
+      <div class="auto-refresh">
+        <input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()">
+        <label for="autoRefresh">Auto-refresh</label>
+      </div>
+
+      <button class="btn btn-danger" onclick="clearLogs()">
+        <span>🗑️</span>
+        <span>Clear Logs</span>
+      </button>
+    </div>
+
+    <!-- Log Table -->
+    <div class="log-container">
+      <div class="log-header">
+        <h2>Log Entries</h2>
+        <div class="log-stats">
+          <span>Total: <strong id="logTotal">0</strong></span>
+          <span>Last update: <strong id="lastUpdate">--</strong></span>
+        </div>
+      </div>
+      
+      <div class="log-table">
+        <table>
+          <thead>
+            <tr>
+              <th width="120">Time</th>
+              <th width="80">Level</th>
+              <th width="120">Module</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="logTableBody">
+            <tr>
+              <td colspan="4" class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <p>No log entries yet</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Button -->
+  <button class="export-btn" onclick="exportLogs()" title="Export logs">
+    <span>💾</span>
+  </button>
+
+  <script>
+    // Theme Management
+    const body = document.body;
+    const themeIcon = document.getElementById('themeIcon');
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    body.setAttribute('data-theme', currentTheme);
+    themeIcon.textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+
+    function toggleTheme() {
+      const current = body.getAttribute('data-theme');
+      const next = current === 'dark' ? 'light' : 'dark';
+      body.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      themeIcon.textContent = next === 'dark' ? '🌙' : '☀️';
+    }
+
+    // Auto-refresh
+    let autoRefreshInterval = null;
+    let isRefreshing = false;
+
+    function toggleAutoRefresh() {
+      const checkbox = document.getElementById('autoRefresh');
+      if (checkbox.checked) {
+        autoRefreshInterval = setInterval(fetchLogs, 3000);
+      } else {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+      }
+    }
+
+    // Fetch logs with debug
+    async function fetchLogs() {
+      if (isRefreshing) return;
+      
+      isRefreshing = true;
+      const indicator = document.getElementById('refreshIndicator');
+      if (indicator) indicator.style.display = 'inline-block';
+      
+      try {
+        const count = document.getElementById('logCount').value;
+        console.log('Fetching logs with count:', count);
+        const response = await fetch(`/logs?count=${count}`);
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
+        
+        const text = await response.text();
+        console.log('Raw response:', text.substring(0, 200) + '...');
+        
+        let logs;
+        try {
+          logs = JSON.parse(text);
+          console.log('Parsed logs:', logs);
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          console.log('Response was not JSON:', text);
+          return;
+        }
+        
+        displayLogs(logs);
+        
+        document.getElementById('logTotal').textContent = logs.length;
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+      } catch (error) {
+        console.error('Error fetching logs:', error);
+      } finally {
+        isRefreshing = false;
+        if (indicator) indicator.style.display = 'none';
+      }
+    }
+
+    function displayLogs(logs) {
+      const tbody = document.getElementById('logTableBody');
+      console.log('Displaying logs:', logs.length, 'entries');
+      
+      if (!logs || logs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="empty-state">
+              <div class="empty-state-icon">📭</div>
+              <p>No log entries found</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      tbody.innerHTML = logs.reverse().map(log => `
+        <tr>
+          <td class="log-time">${log.time || 'N/A'}</td>
+          <td><span class="log-level ${(log.level || '').toLowerCase()}">${log.level || 'UNKNOWN'}</span></td>
+          <td class="log-module">${log.module || 'UNKNOWN'}</td>
+          <td class="log-message">${escapeHtml(log.message || '')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Clear logs
+    async function clearLogs() {
+      if (!confirm('Are you sure you want to clear all logs?')) return;
+      
+      try {
+        const response = await fetch('/clear_logs', { method: 'POST' });
+        console.log('Clear logs response:', response.status);
+        fetchLogs();
+      } catch (error) {
+        console.error('Error clearing logs:', error);
+      }
+    }
+
+    // Export logs
+    function exportLogs() {
+      const tbody = document.getElementById('logTableBody');
+      const rows = tbody.querySelectorAll('tr');
+      
+      let csv = 'Time,Level,Module,Message\n';
+      
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length === 4) {
+          const time = cells[0].textContent;
+          const level = cells[1].textContent.trim();
+          const module = cells[2].textContent;
+          const message = cells[3].textContent;
+          
+          csv += `"${time}","${level}","${module}","${message}"\n`;
+        }
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `water-monitor-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    // Initialize
+    console.log('Initializing logs page...');
+    fetchLogs();
+    toggleAutoRefresh();
+  </script>
+</body>
+</html>

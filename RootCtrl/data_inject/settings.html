@@ -329,6 +329,16 @@
       filter: brightness(1.1);
     }
 
+    .btn-info {
+      background: rgb(166, 179, 204);
+    }
+
+    .btn-info:hover {
+      background: rgb(208, 224, 255);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
     .btn-danger {
       background: var(--danger);
     }
@@ -697,6 +707,14 @@
               <span>Factory Reset</span>
             </button>
           </form>
+
+          <form action="/logs" method="GET" style="flex: 1;">
+            <button type="submit" class="btn btn-info" style="width: 100%;">
+              <span>📋</span>
+              <span>View Logs</span>
+            </button>
+          </form>
+          
         </div>
       </div>
 

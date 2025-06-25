@@ -18,6 +18,7 @@ def before_build(project, config, environment):
     mappings = {
         "dashboard.html": ("dashboard_html.h", "DASHBOARD_HTML"),
         "settings.html": ("settings_html.h", "SETTINGS_HTML"),
+        "logs.html": ("logs_html.h", "LOGS_HTML"),
     }
 
     for html_file, (header_file, var_name) in mappings.items():

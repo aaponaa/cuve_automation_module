@@ -5,6 +5,7 @@
 #include "../config.h"
 #include "../sensors/sensors.h"
 #include <Preferences.h>
+#include "logger.h"
 
 extern PubSubClient mqtt;
 extern String tank_name;
@@ -151,39 +152,77 @@ void removeDiscovery(const String& old_tank_name) {
 // ========== Main MQTT Client Functions ==========
 
 void initMqtt() {
+    LOG_INFO("MQTT", "Initializing MQTT configuration...");
+    
+    // Charger la configuration depuis les préférences
     prefs.begin("cuve", true);
     mqtt_enabled = prefs.getBool("mqtt_enabled", false);
     mqtt_host = prefs.getString("mqtt_host", "");
     mqtt_username = prefs.getString("mqtt_user", "");
     mqtt_password = prefs.getString("mqtt_pass", "");
     prefs.end();
+    
+    LOG_INFO("MQTT", "Configuration loaded from preferences:");
+    LOG_INFO("MQTT", "MQTT enabled: " + String(mqtt_enabled ? "true" : "false"));
+    if (mqtt_enabled) {
+        LOG_INFO("MQTT", "MQTT host: " + (mqtt_host.length() > 0 ? mqtt_host : String("not configured")));
+        LOG_INFO("MQTT", "MQTT username: " + (mqtt_username.length() > 0 ? mqtt_username : String("not configured")));
+        LOG_INFO("MQTT", "MQTT password: " + String(mqtt_password.length() > 0 ? "configured" : "not configured"));
+    } else {
+        LOG_INFO("MQTT", "MQTT is disabled - skipping host configuration details");
+    }
 
-    mqtt.setServer(mqtt_host.c_str(), 1883);
-    mqtt.setCallback(mqttCallback);
-    mqtt.setBufferSize(1024);
+    // Configuration du client MQTT
+    if (mqtt_enabled && mqtt_host.length() > 0) {
+        LOG_INFO("MQTT", "Configuring MQTT client...");
+        mqtt.setServer(mqtt_host.c_str(), 1883);
+        mqtt.setCallback(mqttCallback);
+        mqtt.setBufferSize(1024);
+        LOG_INFO("MQTT", "MQTT client configured - Host: " + mqtt_host + ":1883, Buffer: 1024 bytes");
+    } else {
+        LOG_INFO("MQTT", "MQTT client configuration skipped - MQTT disabled or host not configured");
+    }
 
     last_tank_name = tank_name;
+    LOG_DEBUG("MQTT", "Tank name saved for comparison: " + last_tank_name);
+    
+    LOG_INFO("MQTT", "MQTT initialization completed");
 }
 
 void mqttReconnect() {
-    if (!mqtt_enabled || mqtt.connected()) return;
+    
+    if (mqtt.connected()) {
+        return;
+    }
 
-    String clientId = "lient-" + tank_name;
+    LOG_INFO("MQTT", "Attempting MQTT reconnection...");
+    
+    String clientId = "client-" + tank_name;  // Correction de la typo
+    LOG_DEBUG("MQTT", "Using client ID: " + clientId);
+    
     mqtt.setServer(mqtt_host.c_str(), 1883);
+    LOG_DEBUG("MQTT", "Connecting to MQTT broker: " + mqtt_host + ":1883");
+    
     if (mqtt.connect(clientId.c_str(), mqtt_username.c_str(), mqtt_password.c_str())) {
-        Serial.println("✅ MQTT connected");
+        LOG_INFO("MQTT", "MQTT reconnection successful!");
 
+        LOG_INFO("MQTT", "Publishing Home Assistant discovery information...");
         publishAllDiscovery(tank_name);
 
-        String prefix = tank_name; prefix.replace(" ", "_");
-        mqtt.subscribe((prefix + "/pump_cmd").c_str());
-        Serial.println("✅ Subscribed to: " + prefix + "/pump_cmd");
+        String prefix = tank_name; 
+        prefix.replace(" ", "_");
+        String pump_topic = prefix + "/pump_cmd";
+        mqtt.subscribe(pump_topic.c_str());
+        LOG_INFO("MQTT", "Subscribed to pump command topic: " + pump_topic);
 
-        // Publish MQTT status
         String mqtt_status_topic = prefix + "/mqtt_status";
         mqtt.publish(mqtt_status_topic.c_str(), "online", true);
+        LOG_INFO("MQTT", "Published online status to: " + mqtt_status_topic);
+        
+        LOG_INFO("MQTT", "MQTT reconnection process completed successfully");
     } else {
-        Serial.println("❌ MQTT connection failed");
+        LOG_ERROR("MQTT", "MQTT reconnection failed!");
+        LOG_ERROR("MQTT", "MQTT error state: " + String(mqtt.state()));
     }
 }
 
@@ -232,47 +271,102 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 }
 
 void handleMqttConnect() {
-    String clientId = "lient-" + tank_name;
+    LOG_INFO("MQTT", "Starting MQTT connection process...");
+    
+    String clientId = "client-" + tank_name;
+    LOG_INFO("MQTT", "Generated client ID: " + clientId);
 
-    if (server.hasArg("mqtt_host")) mqtt_host = server.arg("mqtt_host");
-    if (server.hasArg("mqtt_user")) mqtt_username = server.arg("mqtt_user");
-    if (server.hasArg("mqtt_pass")) mqtt_password = server.arg("mqtt_pass");
+    // Récupérer les paramètres de connexion
+    if (server.hasArg("mqtt_host")) {
+        mqtt_host = server.arg("mqtt_host");
+        LOG_INFO("MQTT", "Updated MQTT host: " + mqtt_host);
+    }
+    if (server.hasArg("mqtt_user")) {
+        mqtt_username = server.arg("mqtt_user");
+        LOG_INFO("MQTT", "Updated MQTT username: " + mqtt_username);
+    }
+    if (server.hasArg("mqtt_pass")) {
+        mqtt_password = server.arg("mqtt_pass");
+        LOG_INFO("MQTT", "MQTT password updated");
+    }
 
+    // Configuration du serveur MQTT
+    LOG_INFO("MQTT", "Configuring MQTT server: " + mqtt_host + ":1883");
     mqtt.setServer(mqtt_host.c_str(), 1883);
+    
+    // Tentative de connexion
+    LOG_INFO("MQTT", "Attempting to connect to MQTT broker...");
     bool success = mqtt.connect(clientId.c_str(), mqtt_username.c_str(), mqtt_password.c_str());
 
+    // Sauvegarder la configuration selon le résultat
     prefs.begin("cuve", false);
     if (success) {
+        LOG_INFO("MQTT", "MQTT connection successful!");
         prefs.putBool("mqtt_enabled", true);
         mqtt_enabled = true;
         prefs.putString("mqtt_host", mqtt_host);
         prefs.putString("mqtt_user", mqtt_username);
         prefs.putString("mqtt_pass", mqtt_password);
+        LOG_INFO("MQTT", "MQTT configuration saved to preferences");
     } else {
+        LOG_ERROR("MQTT", "MQTT connection failed!");
+        LOG_ERROR("MQTT", "MQTT error state: " + String(mqtt.state()));
         prefs.putBool("mqtt_enabled", false);
         mqtt_enabled = false;
+        LOG_INFO("MQTT", "MQTT disabled due to connection failure");
     }
     prefs.end();
 
-    String prefix = tank_name; prefix.replace(" ", "_");
-    mqtt.subscribe((prefix + "/pump_cmd").c_str());
-    
-    // On connection, (re-)publish discovery info
-    publishAllDiscovery(tank_name);
+    if (success) {
+        // S'abonner aux commandes
+        String prefix = tank_name; 
+        prefix.replace(" ", "_");
+        String pump_topic = prefix + "/pump_cmd";
+        LOG_INFO("MQTT", "Subscribing to topic: " + pump_topic);
+        mqtt.subscribe(pump_topic.c_str());
+        
+        // Publier les informations de découverte
+        LOG_INFO("MQTT", "Publishing Home Assistant discovery information...");
+        publishAllDiscovery(tank_name);
 
-    // MQTT status as binary_sensor
-    mqtt.publish((prefix + "/mqtt_status").c_str(), "online", true);
+        // Publier le statut MQTT
+        String status_topic = prefix + "/mqtt_status";
+        LOG_INFO("MQTT", "Publishing online status to: " + status_topic);
+        mqtt.publish(status_topic.c_str(), "online", true);
+        
+        LOG_INFO("MQTT", "MQTT setup completed successfully");
+    }
 
+    // Réponse HTTP
     String json = String("{\"connected\":") + (mqtt.connected() ? "true" : "false") + "}";
+    LOG_INFO("WEB", "Sending MQTT connection status: " + String(mqtt.connected() ? "connected" : "disconnected"));
     server.send(200, "application/json", json);
+    LOG_INFO("WEB", "HTTP response sent for MQTT connection attempt");
 }
 
 void disableMQTT() {
+    LOG_INFO("MQTT", "Disabling MQTT connection...");
+    
+    // Sauvegarder la configuration
     prefs.begin("cuve", false);
     prefs.putBool("mqtt_enabled", false);
     prefs.end();
+    LOG_INFO("MQTT", "MQTT disabled flag saved to preferences");
 
+    // Mettre à jour la variable globale
     mqtt_enabled = false;
-    mqtt.disconnect();
+    LOG_INFO("MQTT", "Global MQTT enabled flag set to false");
+    
+    // Déconnecter le client MQTT
+    if (mqtt.connected()) {
+        LOG_INFO("MQTT", "Disconnecting from MQTT broker...");
+        mqtt.disconnect();
+        LOG_INFO("MQTT", "MQTT client disconnected successfully");
+    } else {
+        LOG_INFO("MQTT", "MQTT client was already disconnected");
+    }
+    
+    LOG_INFO("WEB", "MQTT disabled via web interface");
     server.send(200, "text/plain", "MQTT has been disabled");
+    LOG_INFO("WEB", "HTTP response sent: MQTT disabled confirmation");
 }

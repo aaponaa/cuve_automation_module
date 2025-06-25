@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include "../services/mqtt.h"
 #include "../services/settings.h"
+#include "../services/logger.h"  // Ajout de l'include pour le logger
 #include "../sensors/sensors.h"
 #include "../sensors/relay.h"
 #include <Preferences.h>
@@ -8,6 +9,7 @@
 #include <Update.h>
 #include "html_gen/dashboard_html.h"
 #include "html_gen/settings_html.h"
+#include "html_gen/logs_html.h"  // Ajout de l'include pour la page logs
 
 static void handleMqttStatus() {
   String json = String("{\"connected\":") + (mqtt.connected() ? "true" : "false") + "}";
@@ -54,27 +56,59 @@ static void handleDataSettings() {
   server.send(200, "application/json", json);
 }
 
+static void handleLogsPage() {
+  String html = LOGS_HTML;
+  server.send(200, "text/html", html);
+}
+
+static void handleGetLogs() {
+  int count = 50; 
+  
+  if (server.hasArg("count")) {
+    count = server.arg("count").toInt();
+    if (count <= 0 || count > 200) {
+      count = 50; 
+    }
+  }
+  
+  String json = Logger::getInstance().getLogsAsJson(count);
+  server.send(200, "application/json", json);
+}
+
+static void handleClearLogs() {
+  Logger::getInstance().clear();
+  LOG_INFO("WEB", "Logs cleared via web interface");
+  server.send(200, "text/plain", "Logs cleared successfully");
+}
+
+
 void handleFirmwareUpload() {
   HTTPUpload& upload = server.upload();
   if (upload.status == UPLOAD_FILE_START) {
     Serial.printf("Update: %s\n", upload.filename.c_str());
+    LOG_INFO("UPDATE", "Starting firmware update: " + String(upload.filename));
     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
       Update.printError(Serial);
+      LOG_ERROR("UPDATE", "Failed to begin update");
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
       Update.printError(Serial);
+      LOG_ERROR("UPDATE", "Write failed");
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) {
       Serial.printf("Update Success: %u bytes\nRebooting...\n", upload.totalSize);
+      LOG_INFO("UPDATE", "Update successful: " + String(upload.totalSize) + " bytes");
     } else {
       Update.printError(Serial);
+      LOG_ERROR("UPDATE", "Update failed at end");
     }
   }
 }
 
 void handleRebootWithHtml() {
+  LOG_INFO("WEB", "Reboot requested via web interface");
   server.send(200, "text/html",
     "<html><head><meta http-equiv='refresh' content='2; url=/'></head>"
     "<body><h1>Rebooting...</h1></body></html>");
@@ -83,6 +117,7 @@ void handleRebootWithHtml() {
 }
 
 void handleUploadSuccessAndReboot() {
+  LOG_INFO("WEB", "Firmware upload completed, rebooting...");
   server.send(200, "text/html",
     "<html><head><meta http-equiv='refresh' content='2; url=/'></head>"
     "<body><h1>Update complete. Rebooting...</h1></body></html>");
@@ -101,9 +136,10 @@ static void handleSettings() {
 }
 
 void initWebServer() {
-  server.on("/",HTTP_GET ,handleRoot);
+  // Routes existantes
+  server.on("/", HTTP_GET, handleRoot);
   server.on("/settings", HTTP_GET, handleSettings);
-  server.on("/data",HTTP_GET, handleData);
+  server.on("/data", HTTP_GET, handleData);
   server.on("/datasettings", HTTP_GET, handleDataSettings);
   server.on("/factory_reset", handleFactoryReset);
   server.on("/mqtt_status", HTTP_GET, handleMqttStatus);
@@ -115,6 +151,15 @@ void initWebServer() {
   server.on("/period", HTTP_POST, savePeriodSettings);
   server.on("/reboot", HTTP_POST, handleRebootWithHtml);
   server.on("/upload", HTTP_POST, handleUploadSuccessAndReboot, handleFirmwareUpload);
+  
+  server.on("/logs", HTTP_GET, []() {
+    if (!server.hasArg("count")) {
+      handleLogsPage();
+    } else {
+      handleGetLogs();
+    }
+  });
+  server.on("/clear_logs", HTTP_POST, handleClearLogs);   
   server.begin();
-  Serial.println("✅ Web server started");
+  LOG_INFO("WEB", "Web server started with logs endpoints");
 }
