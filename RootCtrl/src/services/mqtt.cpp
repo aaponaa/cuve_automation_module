@@ -52,11 +52,45 @@ void publishDiscoverySensor(const String& tank_name, const char* suffix, const c
   jsonPayload += "\"sw_version\":\"" + fw_version + "\"";
   jsonPayload += "}}";
 
-  // Use the same publish method that worked in simple test
-  mqtt.publish(topic.c_str(), jsonPayload.c_str(), true);
+  bool success = mqtt.publish(topic.c_str(), jsonPayload.c_str(), true);
+    if (success) {
+    LOG_INFO("MQTT", "Published successfully to: " + topic);
+    } else {
+    LOG_ERROR("MQTT", "Failed to publish to: " + topic);
+    }
 
 
 }
+
+void publishDiscoveryTextSensor(const String& tank_name, const char* suffix, const char* name) {
+  String object_id = getObjectId(tank_name, suffix);
+  String stateTopic = tank_name + "/" + suffix;
+  stateTopic.replace(" ", "_");
+  String devId = tank_name + "_device";
+  String topic = "homeassistant/sensor/" + object_id + "/config";
+
+  String jsonPayload = "{";
+  jsonPayload += "\"name\":\"" + String(name) + "\",";
+  jsonPayload += "\"state_topic\":\"" + stateTopic + "\",";
+  jsonPayload += "\"unique_id\":\"" + object_id + "\",";
+  jsonPayload += "\"force_update\":true,";  
+  jsonPayload += "\"value_template\":\"{{ value }}\",";
+  jsonPayload += "\"device\":{";
+  jsonPayload += "\"identifiers\":[\"" + devId + "\"],";
+  jsonPayload += "\"name\":\"" + tank_name + "\",";
+  jsonPayload += "\"manufacturer\":\"RootCtrl\",";
+  jsonPayload += "\"model\":\"Water Tank Monitor\",";
+  jsonPayload += "\"sw_version\":\"" + fw_version + "\"";
+  jsonPayload += "}}";
+
+  bool success = mqtt.publish(topic.c_str(), jsonPayload.c_str(), true);
+  if (success) {
+    LOG_INFO("MQTT", "Published text discovery to: " + topic);
+  } else {
+    LOG_ERROR("MQTT", "Failed to publish text discovery to: " + topic);
+  }
+}
+
 
 void publishDiscoveryPumpSwitch(const String& tank_name) {
   String object_id = getObjectId(tank_name, "pump");
@@ -86,8 +120,12 @@ void publishDiscoveryPumpSwitch(const String& tank_name) {
   jsonPayload += "\"sw_version\":\"" + fw_version + "\"";
   jsonPayload += "}}";
   
-  mqtt.publish(topic.c_str(), jsonPayload.c_str(), true);
-
+  bool success = mqtt.publish(topic.c_str(), jsonPayload.c_str(), true);
+    if (success) {
+    LOG_INFO("MQTT", "Published successfully to: " + topic);
+    } else {
+    LOG_ERROR("MQTT", "Failed to publish to: " + topic);
+    }
 }
 
 void publishDiscoveryMqttStatus(const String& tank_name) {
@@ -114,7 +152,12 @@ void publishDiscoveryMqttStatus(const String& tank_name) {
   jsonPayload += "\"sw_version\":\"" + fw_version + "\"";
   jsonPayload += "}}";
 
-  mqtt.publish(topic.c_str(), jsonPayload.c_str(), true);
+  bool success = mqtt.publish(topic.c_str(), jsonPayload.c_str(), true);
+    if (success) {
+    LOG_INFO("MQTT", "Published successfully to: " + topic);
+    } else {
+    LOG_ERROR("MQTT", "Failed to publish to: " + topic);
+    }
 }
 
 // ---- Remove Discovery (on tank name change) ----
@@ -127,11 +170,14 @@ void publishAllDiscovery(const String& tank_name) {
   publishDiscoverySensor(tank_name, "outside_humi", "Outside Humidity", "%", "humidity");
   publishDiscoverySensor(tank_name, "water_distance", "Water Distance", "cm");
 
+  publishDiscoverySensor(tank_name, "wifi_signal", "WiFi Signal", "dBm", "signal_strength");
+  publishDiscoveryTextSensor(tank_name, "wifi_ssid", "WiFi SSID");
+  publishDiscoveryTextSensor("TestingBoard", "wifi_ip", "IP Address");
+
+
   publishDiscoveryPumpSwitch(tank_name);
   publishDiscoveryMqttStatus(tank_name);
 }
-
-
 
 // ---- Publish all entities (call on startup, after MQTT connect, or after tank name change) ----
 void removeDiscovery(const String& old_tank_name) {
@@ -254,6 +300,11 @@ void handleMqttLoop() {
 
         mqtt.publish((prefix + "/pump_state").c_str(), pump_is_on ? "on" : "off", true);
         mqtt.publish((prefix + "/mqtt_status").c_str(), "online", true);
+
+        mqtt.publish((prefix + "/wifi_signal").c_str(), String(WiFi.RSSI()).c_str(), true);
+        mqtt.publish((prefix + "/wifi_ssid").c_str(), WiFi.SSID().c_str(), true);
+        mqtt.publish((prefix + "/wifi_ip").c_str(), WiFi.localIP().toString().c_str(), true);
+
     }
 }
 
