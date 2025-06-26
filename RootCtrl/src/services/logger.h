@@ -29,7 +29,7 @@ struct RateLimitInfo {
 
 class Logger {
 private:
-  static const size_t MAX_LOG_ENTRIES = 1000;
+  static const size_t MAX_LOG_ENTRIES = 400;
   static const unsigned long RATE_LIMIT_WINDOW_MS = 2000; // 2 secondes
   static const unsigned int MAX_LOGS_PER_WINDOW = 1; // Max 1 logs identiques par 10 secondes
   

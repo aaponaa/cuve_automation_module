@@ -69,7 +69,7 @@ void readDHT() {
     outside_temp = t;
     outside_humi = h;
     dhtFailCount = 0;
-    LOG_DEBUG("DHT22", "Temp: " + String(t, 1) + "°C, Humidity: " + String(h, 1) + "%");
+    //LOG_DEBUG("DHT22", "Temp: " + String(t, 1) + "°C, Humidity: " + String(h, 1) + "%");
   }
 
   if (dhtFailCount >= maxDhtFail) {
@@ -87,12 +87,12 @@ void readDS18B20() {
     LOG_ERROR("DS18B20", "Sensor disconnected or read error");
   } else {
     current_temp = temp;
-    LOG_DEBUG("DS18B20", "Water temp: " + String(temp, 1) + "°C");
+    //LOG_DEBUG("DS18B20", "Water temp: " + String(temp, 1) + "°C");
   }
 }
 
 float readSR04M() {
-  LOG_DEBUG("SR04M", "Starting measurement...");
+  //LOG_DEBUG("SR04M", "Starting measurement...");
   float sum = 0;
   int validReadings = 0;
   const int samples = 5;
@@ -110,7 +110,7 @@ float readSR04M() {
       float distance = duration * 0.0343 / 2.0;
       sum += distance;
       validReadings++;
-      LOG_DEBUG("SR04M", "Sample " + String(i) + ": " + String(distance, 1) + " cm");
+      //LOG_DEBUG("SR04M", "Sample " + String(i) + ": " + String(distance, 1) + " cm");
     } else {
       LOG_WARNING("SR04M", "Sample " + String(i) + " timeout");
     }
@@ -120,7 +120,7 @@ float readSR04M() {
   
   if (validReadings > 0) {
     float avg = sum / validReadings;
-    LOG_INFO("SR04M", "Average distance: " + String(avg, 1) + " cm (" + String(validReadings) + " valid samples)");
+    //LOG_INFO("SR04M", "Average distance: " + String(avg, 1) + " cm (" + String(validReadings) + " valid samples)");
     return avg;
   } else {
     LOG_ERROR("SR04M", "No valid readings");
