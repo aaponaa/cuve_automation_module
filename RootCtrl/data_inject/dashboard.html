@@ -534,6 +534,10 @@
       filter: brightness(1.1);
     }
 
+    .signal-good { color: var(--success); }
+    .signal-ok { color: var(--warning); }
+    .signal-bad { color: var(--danger); }
+
     /* Footer */
     .footer {
       text-align: center;
@@ -679,7 +683,10 @@
         <div class="logo-text">
           <h1><span id="tankname">Tank</span> Monitor</h1>
           <p>Version <span id="version">--</span></p>
-          <tr><td>WiFi Signal</td><span id="wifi_signal">...</span></tr>
+          <div class="info-row">
+            <span class="info-label">WiFi Signal</span>
+            <span class="info-value" id="wifi_signal">-- dBm</span>
+          </div>
         </div>
       </div>
       <div class="header-controls">
@@ -836,7 +843,11 @@
         document.getElementById('version').textContent = data.fw_version || '--';
 
         // Wifi Signal 
-        document.getElementById("wifi_signal").innerText = data.wifi_signal + " dBm";
+        const wifiVal = data.wifi_signal;
+        const wifiElem = document.getElementById("wifi_signal");
+
+        wifiElem.innerText = wifiVal + " dBm";
+        wifiElem.className = ""; // reset
         
         // Update water visualization
         const waterFill = document.getElementById('waterFill');
