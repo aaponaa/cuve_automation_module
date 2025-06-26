@@ -132,41 +132,36 @@ float readA02YYUW() {
   static unsigned long lastGoodReading = 0;
   static int consecutiveErrors = 0;
 
-  // Dump complet du buffer
-  String hexDump = "Buffer: ";
-  while (mySerial.available()) {
-    byte b = mySerial.read();
-    char hex[6];
-    sprintf(hex, "0x%02X", b);
-    hexDump += String(hex) + " ";
-  }
-  if (hexDump != "Buffer: ") {
-    LOG_DEBUG("A02YYUW", hexDump);
-  }
+  const unsigned long timeout = 100;  // Timeout for waiting full packet (ms)
+  unsigned long startMillis = millis();
 
-  // Lecture normale si au moins 4 octets disponibles
-  while (mySerial.available() >= 4) {
-    byte firstByte = mySerial.peek();
-    if (firstByte == 0xFF) {
-      byte buffer[4];
-      mySerial.readBytes(buffer, 4);
+  while (millis() - startMillis < timeout) {
+    // Ensure we have at least 4 bytes
+    if (mySerial.available() >= 4) {
+      if (mySerial.peek() == 0xFF) {
+        byte buffer[4];
+        mySerial.readBytes(buffer, 4);
 
-      int distance = (buffer[1] << 8) | buffer[2];
-      byte checksum = (buffer[0] + buffer[1] + buffer[2]) & 0xFF;
+        int distance = (buffer[1] << 8) | buffer[2];
+        byte checksum = (buffer[0] + buffer[1] + buffer[2]) & 0xFF;
 
-      if (checksum != buffer[3]) {
-        LOG_WARNING("A02YYUW", "Checksum error");
-      } else if (distance >= 30 && distance <= 7500) {
-        float distanceCm = distance / 10.0;
-        lastGoodReading = millis();
-        consecutiveErrors = 0;
-        LOG_INFO("A02YYUW", "Valid reading: " + String(distanceCm, 1) + " cm");
-        return distanceCm;
+        if (checksum == buffer[3]) {
+          if (distance >= 30 && distance <= 7500) {
+            float distanceCm = distance / 10.0;
+            lastGoodReading = millis();
+            consecutiveErrors = 0;
+            LOG_INFO("A02YYUW", "Valid reading: " + String(distanceCm, 1) + " cm");
+            return distanceCm;
+          } else {
+            LOG_WARNING("A02YYUW", "Distance out of range: " + String(distance));
+          }
+        } else {
+          LOG_WARNING("A02YYUW", "Checksum error");
+        }
       } else {
-        LOG_WARNING("A02YYUW", "Out of range: " + String(distance) + " mm");
+        // Discard bytes until we find 0xFF
+        mySerial.read();
       }
-    } else {
-      mySerial.read(); 
     }
   }
 
@@ -179,6 +174,7 @@ float readA02YYUW() {
 
   return -1.0;
 }
+
 
 
 float calculateVolumeLiters(float height_cm) {
